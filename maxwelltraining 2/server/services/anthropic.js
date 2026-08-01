@@ -206,6 +206,12 @@ Do not diagnose. Do not prescribe rehab. Recommend professional guidance.
 |---|----------|------|------|-----------------|------|--------------|
 | A | [name] | [x] | [x] | [specific lbs ROUNDED TO 5 or Bodyweight] | [x min/sec] | [MAX 70 CHARS. One punchy sentence.] |
 
+"#" column rules (this is not a row number — it encodes supersets):
+- If two (or three) exercises are performed back-to-back as a superset/tri-set, give them the SAME letter with increasing numbers: A1, A2 (A3 for a tri-set). The next group is B1, B2, then C1, C2, etc.
+- A standalone straight-set exercise (not part of a superset) gets just the next letter alone, no number: B, C, D...
+- Letters must be sequential down the table with no gaps or repeats within a day.
+- For a superset pair, "Rest" is the rest taken after finishing the full round (i.e. after A2, before starting the next A1).
+
 **Cool-Down (5 min)**
 [4 specific stretches for muscles worked]
 
