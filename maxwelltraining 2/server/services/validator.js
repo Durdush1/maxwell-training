@@ -82,7 +82,7 @@ function validate(body) {
   const note    = safeText(body.note, 300);
   const avoid   = safeText(body.avoid, 200);
   const injury  = safeText(body.injury, 200);
-  const sport   = SPORT_ALLOW.includes(body.sport) ? body.sport : 'None';
+  const sport   = SPORT_ALLOW.includes(body.sport) ? body.sport : (safeText(body.sport, 40) || 'None');
   const position= safeText(body.position, 40);
   const season  = safeText(body.season, 40);
   const priority= Array.isArray(body.priority)
@@ -98,7 +98,7 @@ function validate(body) {
   return {
     ok: true,
     data: {
-      tier, level: body.level, goals: body.goals, style: body.style,
+      tier: body.tier, level: body.level, goals: body.goals, style: body.style,
       gym: body.gym, duration: body.duration,
       fname, age, weight, height_cm, days, hours, sex: body.sex || 'prefer not to say',
       squat, bench, deadlift, pullups,
@@ -108,9 +108,6 @@ function validate(body) {
       playsport: body.playsport === 'yes' && sport !== 'None' ? 'yes' : 'no',
     },
   };
-
-  // fix: tier needs to be in scope
-  var tier = body.tier;
 }
 
 module.exports = { validate };
