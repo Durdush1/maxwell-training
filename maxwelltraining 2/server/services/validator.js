@@ -42,6 +42,14 @@ function safeText(val, maxLen = 200) {
     .trim();
 }
 
+// Style is now multi-select on the frontend, sent as a comma-joined string
+// (e.g. "Strength, Athletic / Power"). Every individual piece must still be
+// one of the known styles.
+function isValidStyle(val) {
+  if (typeof val !== 'string' || !val) return false;
+  return val.split(',').map(s => s.trim()).every(s => STYLE_ALLOW.includes(s));
+}
+
 function validate(body) {
   const errors = [];
 
@@ -54,9 +62,7 @@ function validate(body) {
   const badGoals = (body.goals || []).filter(g => !GOALS_ALLOW.includes(g));
   if (badGoals.length) errors.push('Invalid goal value');
   // style
-  if (body.style && !STYLE_ALLOW.includes(body.style)) errors.push('Invalid style');
-  // gym
-  if (!GYM_ALLOW.includes(body.gym)) errors.push('Invalid equipment');
+  if (body.style && !isValidStyle(body.style)) errors.push('Invalid style');
   // duration
   if (!DUR_ALLOW.includes(body.duration)) errors.push('Invalid duration');
   // sex
@@ -83,6 +89,7 @@ function validate(body) {
   const avoid   = safeText(body.avoid, 200);
   const injury  = safeText(body.injury, 200);
   const sport   = SPORT_ALLOW.includes(body.sport) ? body.sport : (safeText(body.sport, 40) || 'None');
+  const gym     = GYM_ALLOW.includes(body.gym) ? body.gym : (safeText(body.gym, 150) || 'Full commercial gym');
   const position= safeText(body.position, 40);
   const season  = safeText(body.season, 40);
   const priority= Array.isArray(body.priority)
@@ -99,7 +106,7 @@ function validate(body) {
     ok: true,
     data: {
       tier: body.tier, level: body.level, goals: body.goals, style: body.style,
-      gym: body.gym, duration: body.duration,
+      gym, duration: body.duration,
       fname, age, weight, height_cm, days, hours, sex: body.sex || 'prefer not to say',
       squat, bench, deadlift, pullups,
       sport, position, season, priority,
