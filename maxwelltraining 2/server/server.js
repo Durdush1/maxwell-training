@@ -16,6 +16,13 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const ORIGIN = process.env.ALLOWED_ORIGIN || 'http://localhost:3000';
 
+// Railway (and most PaaS hosts) sit behind a reverse proxy that adds an
+// X-Forwarded-For header. Without this, express-rate-limit can't safely
+// determine the real client IP and throws on every request instead of
+// rate-limiting normally. `1` means "trust exactly one hop" (Railway's
+// own proxy) — the standard, safe setting for this kind of deployment.
+app.set('trust proxy', 1);
+
 // ── Security headers ──────────────────────────────────────────────────────
 app.use(helmet({
   contentSecurityPolicy: {
