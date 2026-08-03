@@ -4,14 +4,20 @@ const { v4: uuidv4 } = require('uuid');
 const { validate } = require('../services/validator');
 const { generatePlan } = require('../services/anthropic');
 const planStore = require('../services/planStore');
-const { generateLimiter } = require('../middleware/rateLimiter');
+const { generateLimiter, apiLimiter } = require('../middleware/rateLimiter');
 const { logger } = require('../services/logger');
 
 const router = express.Router();
-const TIMEOUT_MS = 90_000; // 90 seconds
+
+// Netlify's proxy to this backend times out at 26 seconds (documented,
+// fixed limit -- not something we can raise). Writing a full program can
+// take longer than that. So this endpoint responds immediately with just
+// a planId, generates in the background, and the frontend polls
+// GET /api/generate/:planId every couple seconds until it's ready. No
+// single request in that flow is ever slow, so the 26s limit never
+// applies to any of them.
 
 router.post('/', generateLimiter, async (req, res) => {
-  // Validate inputs
   const result = validate(req.body);
   if (!result.ok) {
     return res.status(400).json({ error: 'Invalid input', details: result.errors });
@@ -20,29 +26,21 @@ router.post('/', generateLimiter, async (req, res) => {
   const A = result.data;
   const planId = uuidv4();
 
-  // Timeout wrapper
-  const timeout = setTimeout(() => {
-    if (!res.headersSent) {
-      res.status(504).json({ error: 'Plan generation timed out. Please try again.' });
-    }
-  }, TIMEOUT_MS);
+  planStore.set(planId, {
+    status: 'pending',
+    paid: false,
+    tier: A.tier,
+    level: A.level,
+    email: A.email,
+  });
+
+  // Respond right away -- everything below runs after the response is sent.
+  res.json({ planId });
 
   try {
     const planText = await generatePlan(A);
 
-    // Store plan server-side (unpaid by default)
-    planStore.set(planId, {
-      text: planText,
-      paid: false,
-      tier: A.tier,
-      email: A.email,
-      level: A.level,
-    });
-
-    clearTimeout(timeout);
-
-    // Return only a teaser (first ~1200 chars) to the client
-    // Full plan only accessible after payment via /api/plans/:planId
+    // Same teaser logic as before: stop after the 3rd "## " phase header.
     const lines = planText.split('\n');
     let teaser = '';
     let sectionCount = 0;
@@ -52,19 +50,47 @@ router.post('/', generateLimiter, async (req, res) => {
       teaser += line + '\n';
     }
 
+    planStore.set(planId, {
+      status: 'ready',
+      text: planText,
+      teaser: teaser.trim(),
+      paid: false,
+      tier: A.tier,
+      level: A.level,
+      email: A.email,
+    });
+
     logger.info('Plan stored', { planId, tier: A.tier, level: A.level });
-
-    return res.json({ planId, teaser: teaser.trim() });
-
   } catch (err) {
-    clearTimeout(timeout);
     logger.error('Plan generation failed', { message: err.message, planId });
-    if (!res.headersSent) {
-      return res.status(500).json({
-        error: 'Unable to generate your program right now. Please try again in a moment.',
-      });
-    }
+    planStore.set(planId, {
+      status: 'error',
+      error: 'Unable to generate your program right now. Please try again in a moment.',
+      paid: false,
+      tier: A.tier,
+    });
   }
+});
+
+// Polled by the frontend after POST above returns a planId.
+router.get('/:planId', apiLimiter, (req, res) => {
+  const { planId } = req.params;
+  if (!planId || !planId.match(/^[0-9a-f-]{36}$/i)) {
+    return res.status(400).json({ error: 'Invalid plan ID.' });
+  }
+
+  const plan = planStore.get(planId);
+  if (!plan) {
+    return res.status(404).json({ error: 'Plan not found or expired.' });
+  }
+
+  if (plan.status === 'pending') {
+    return res.json({ status: 'pending' });
+  }
+  if (plan.status === 'error') {
+    return res.status(500).json({ status: 'error', error: plan.error });
+  }
+  return res.json({ status: 'ready', teaser: plan.teaser });
 });
 
 module.exports = router;
