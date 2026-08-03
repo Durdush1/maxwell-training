@@ -4,7 +4,7 @@ const rateLimit = require('express-rate-limit');
 // Plan generation — expensive, strictly limited
 const generateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 min
-  max: 5,
+  max: 15,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests. Please wait 15 minutes before trying again.' },
