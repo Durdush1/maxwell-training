@@ -13,7 +13,6 @@ module.exports = async (req, res) => {
     });
     const s = await r.json();
     if (!r.ok) return res.status(200).json({ paid: false });
-    // 'no_payment_required' = a 100%-off promo code was used (only codes you create in Stripe can do this)
     const paid = s.status === 'complete' && (s.payment_status === 'paid' || s.payment_status === 'no_payment_required');
     return res.status(200).json({ paid, amount: paid ? s.amount_total : 0 });
   } catch (e) {
