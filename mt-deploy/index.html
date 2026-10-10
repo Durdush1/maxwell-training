@@ -2604,367 +2604,378 @@ async function retrieveAndShow(planId) {
 <script>
 function makePDF(){
   if(typeof window.jspdf==='undefined') throw new Error('jsPDF not loaded');
-  const{jsPDF}=window.jspdf;
+  var jsPDF=window.jspdf.jsPDF;
+  var AA=(typeof A!=='undefined'&&A)?A:{};
+  var PLAN=String(window.genPlanText||(typeof genPlanText!=='undefined'?genPlanText:'')||'');
 
-  function cl(t){return String(t||'').replace(/\*\*/g,'').replace(/\*/g,'').replace(/^#+\s*/,'').trim();}
+  // ---------- helpers ----------
+  function clean(s){
+    return String(s==null?'':s)
+      .replace(/[–—‒―]/g,'-').replace(/[‘’]/g,"'").replace(/[“”]/g,'"')
+      .replace(/×/g,'x').replace(/•/g,'-').replace(/≥/g,'>=').replace(/≤/g,'<=')
+      .replace(/→/g,'->').replace(/ /g,' ').replace(/…/g,'...')
+      .replace(/[^\x09\x0A\x20-\x7E¡-ÿ]/g,'')
+      .replace(/\*\*/g,'').replace(/^\s*#+\s*/,'').replace(/^\s*\*\s+/,'').replace(/\x60/g,'').replace(/\s+/g,' ').trim();
+  }
   function r5(n){return Math.max(5,Math.round(n/5)*5);}
-  function num(s){return parseInt(String(s||'').replace(/[^\d]/g,''))||0;}
+  function num(s){return parseInt(String(s==null?'':s).replace(/[^\d]/g,''))||0;}
 
-  const nm=cl(A.fname||localStorage.getItem('mt_nm')||'Athlete');
-  const lvl=cl(A.level||'intermediate');
-  const days=parseInt(A.days)||4;
-  const hrs=parseInt(A.hours)||60;
-  const sq=num(A.squat),bp=num(A.bench),dl=num(A.deadlift),pu=num(A.pullups)||8;
-  const sqS=sq?r5(sq*0.72):115,bpS=bp?r5(bp*0.72):95,dlS=dl?r5(dl*0.72):135;
-  const wt=num(A.weight)||180;
-  const prot=wt,cals=r5(wt*16/5)*5,carbs=r5(wt*2),fats=r5(wt*0.45);
-  const dipWt=bp>160?'BW + 25lbs':bp>120?'BW + 10lbs':'Bodyweight';
-  const puWt=pu>10?'BW + '+r5(pu*1.2)+'lbs':pu>5?'Bodyweight':'Band-assisted';
+  var nm=clean(AA.fname||(function(){try{return localStorage.getItem('mt_nm');}catch(e){return '';}})()||'Athlete')||'Athlete';
+  var lvl=clean(AA.level||'');
+  var days=parseInt(AA.days)||0;
+  var hrs=parseInt(AA.hours)||0;
 
-  const BG=[14,14,20],CARD=[26,26,36],C2=[34,34,46];
-  const INK=[235,233,228],MID=[128,126,146],LITE=[76,74,92];
-  const RED=[218,48,58],GRN=[38,180,92],BLU=[54,124,226],GOLD=[208,162,48];
-  const W=210,ML=14,CW=182;
-  const NW=78,SW=32,RS=20,TK=18,TOT=NW+SW+RS+TK;
-
-  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
-  let pg=0;
-
-  function newPage(){
-    if(pg>0){addFooter();doc.addPage();}
-    pg++;
-    doc.setFillColor(...BG);doc.rect(0,0,W,297,'F');
-  }
-  function addFooter(){
-    doc.setFillColor(...CARD);doc.rect(0,286,W,11,'F');
-    doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(...MID);
-    doc.text('Maxwell Training  --  '+nm,ML,290.5);
-    doc.text(String(pg),W-ML,290.5,{align:'right'});
-  }
-  function bx(x,y,w,h,fill){doc.setFillColor(...fill);doc.rect(x,y,w,h,'F');}
-  function t(x,y,text,sz,bold,col,align,maxW){
-    doc.setFont('helvetica',bold?'bold':'normal');
-    doc.setFontSize(sz||8);doc.setTextColor(...(col||INK));
-    const s=cl(text).substring(0,120);
-    doc.text(s,x,y,{align:align||'left',maxWidth:maxW||(W-x-ML)});
-  }
-  function calcRowH(cue){
-    doc.setFont('helvetica','normal');doc.setFontSize(6.2);
-    const lines=doc.splitTextToSize(cl(cue),NW-13);
-    const nLines=Math.min(lines.length,2);
-    return Math.max(18, 3+5.5+5+nLines*4.2+4);
-  }
-
-  // COVER
-  newPage();
-  bx(0,0,W,5,RED);
-  t(ML,27,'Maxwell',46,true,RED);t(ML,51,'Training',46,true,INK);
-  bx(ML,77,88,1.5,RED);
-  t(ML,84,'PROGRAM BUILT FOR',6.5,false,MID);
-  t(ML,92,nm.toUpperCase(),18,true,INK);
-  t(ML,105,lvl+' -- '+days+' days/week -- '+hrs+' min sessions',8,false,MID);
-  if(A.playsport==='yes'&&A.sport)t(ML,112,cl(A.sport)+' -- '+cl(A.position||'')+' -- '+cl(A.season||''),7.5,false,MID);
-
-  var macros=[['PROTEIN',prot+'g'],['CALORIES',cals.toLocaleString()],['CARBS',carbs+'g'],['FATS',fats+'g']];
-  macros.forEach(function([lbl,val],i){
-    var bxX=ML+i*45;
-    bx(bxX,121,43,30,CARD);bx(bxX,121,43,2,RED);
-    t(bxX+3,127,lbl,5.5,false,MID);t(bxX+3,133,val,15,true,RED);t(bxX+3,143,'per day',5.5,false,LITE);
-  });
-
-  bx(ML,159,CW,56,CARD);bx(ML,159,CW,2,GOLD);
-  t(ML+4,165,'YOUR STARTING WEIGHTS',7,true,GOLD);
-  t(ML+4,172,'All weights rounded to nearest 5lbs. Load them with any standard gym plates.',6.5,false,MID);
-  var lifts=[['Squat',sqS+'lbs',sq?'72% of your '+sq+'lb max -- add 5lbs each week':'estimated for your level'],
-    ['Bench Press',bpS+'lbs',bp?'72% of your '+bp+'lb max -- heavy strength sets':'estimated for your level'],
-    ['Deadlift',dlS+'lbs',dl?'72% of your '+dl+'lb max -- hip hinge focus':'estimated for your level'],
-    ['Dips',dipWt,'Lean forward for chest. Full range of motion.'],
-    ['Pull-Ups',puWt,pu>8?'You do '+pu+' reps -- add weight each week':'Build to 8 reps then add weight']];
-  lifts.forEach(function([lift,wt2,note],j){
-    var ly=180+j*8;
-    t(ML+4,ly,lift,8,true,INK);t(ML+44,ly,wt2,11,true,GOLD);t(ML+78,ly,note,6.5,false,MID);
-  });
-  t(ML+4,222,'Add 5lbs per week when you complete all reps with good form.',6.5,false,MID);
-
-  t(ML,231,'YOUR WEEKLY SCHEDULE',7,true,RED);
-  var wdays=['MON','TUE','WED','THU','FRI','SAT','SUN'];
-  var wcols=[RED,RED,GRN,RED,BLU,LITE,LITE];
-  var wfoc=['Lower Body','Upper Body','Power/Jumps','Full Body','Running','Rest','Rest'];
-  var dw2=CW/7;
-  wdays.forEach(function(d,i){
-    var x=ML+i*dw2;var isR=i>=5;
-    bx(x,237,dw2-0.5,22,isR?BG:CARD);bx(x,237,dw2-0.5,2,wcols[i]);
-    doc.setFont('helvetica','bold');doc.setFontSize(5.5);doc.setTextColor(...wcols[i]);
-    doc.text(d,x+dw2/2,241.5,{align:'center'});
-    doc.setFont('helvetica','normal');doc.setFontSize(5);doc.setTextColor(...(isR?LITE:MID));
-    doc.text(wfoc[i],x+dw2/2,246,{align:'center'});
-  });
-
-  var ntim=[['Before training','Carbs + protein. Oats + shake. Rice + chicken.'],
-    ['After training','Protein + carbs. Shake + banana. Chicken + rice.'],
-    ['Before bed','Greek yoghurt or cottage cheese. Slow protein overnight.'],
-    ['Creatine','5g daily with any meal. Most proven supplement.']];
-  ntim.forEach(function([wh,wt3],k){
-    var yy=265+k*5.3;bx(ML,yy,CW,5,CARD);
-    t(ML+2,yy+3.2,wh,6,true,INK);t(ML+48,yy+3.2,wt3,6,false,MID);
-  });
-  t(ML,286,'maxwelltraining.org  --  @Maxwell__Training',6.5,false,LITE);
-
-  // PARSE PLAN INTO DAY SECTIONS
-  var planLines=genPlanText.split(String.fromCharCode(10));
-  var sections=[];var cur=null;
-  planLines.forEach(function(line){
-    var raw=line.trim();
-    var stripped=cl(raw);
-    if(raw.match(/^###?\s*(DAY\s*\d+|MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SESSION\s*\d+)/i)){
-      if(cur)sections.push(cur);
-      cur={header:stripped.replace(/^#+\s*/,''),lines:[],warm:[],exs:[],cool:[]};
-    } else if(cur){
-      cur.lines.push(line);
+  // ---------- PARSE ----------
+  function parsePlan(text){
+    var out={why:[],nutri:[],sched:[],phases:[],notes:[],disclaimer:''};
+    var sect='',phase=null,day=null,mode='',label='',tbl=null,lastWasRow=false,block=null;
+    var DAYRE=/(^|\b)(day|session|workout)\s*\d+|^(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i;
+    function newPhase(name){phase={name:name,days:[]};out.phases.push(phase);day=null;}
+    function newDay(title){
+      if(!phase)newPhase('Training Program');
+      day={title:title,warm:[],cool:[],blocks:[],extra:[]};phase.days.push(day);mode='';label='';tbl=null;block=null;lastWasRow=false;
     }
-  });
-  if(cur)sections.push(cur);
-
-  sections.forEach(function(sec){
-    var mode='none';
-    sec.lines.forEach(function(line){
-      var raw=line.trim();var lower=raw.toLowerCase();var stripped=cl(raw);
-      if(!stripped)return;
-      if(lower.includes('warm-up')||lower.includes('warm up')){mode='warm';return;}
-      if(lower.includes('cool-down')||lower.includes('cool down')){mode='cool';return;}
-      if(lower.includes('main work')||lower.includes('training block')||lower.includes('strength block')||lower.includes('power block')||lower.includes('sprint')||lower.includes('conditioning block')){mode='table';return;}
-      if(raw.includes('|')){
-        var cells=raw.split('|').slice(1,-1).map(function(c){return cl(c);});
-        var joined=cells.join('').replace(/[-:\s]/g,'');
-        if(!joined)return;
-        if(cells[0].toLowerCase().includes('exercise')||cells[0].toLowerCase().includes('sets')||cells[0]==='#')return;
-        if(cells.length>=2){sec.exs.push(cells);mode='table';}
+    text.split(/\r?\n/).forEach(function(line){
+      var raw=line.trim();
+      if(!raw||/^[-_=*]{3,}$/.test(raw)){lastWasRow=false;return;}
+      if(/^\**disclaimer/i.test(raw)){out.disclaimer=clean(raw);return;}
+      var h=raw.match(/^#{1,6}\s*(.+)$/);
+      var bold=raw.match(/^\*\*(.+?)\*\*\s*:?\s*$/);
+      var title=h?clean(h[1]):(bold?clean(bold[1]):'');
+      var tl=title.toLowerCase();
+      // section / phase / day headings
+      if(h||(bold&&(DAYRE.test(tl)||/^phase\b/.test(tl)))){
+        if(DAYRE.test(tl)&&!/^phase\b/.test(tl)){newDay(title);sect='plan';return;}
+        if(/phase|^weeks?\b|block \d/.test(tl)&&!/nutrition|schedule/.test(tl)){newPhase(title);sect='plan';return;}
+        if(/why/.test(tl)){sect='why';return;}
+        if(/nutrition|macro/.test(tl)){sect='nutri';return;}
+        if(/schedule|week at a glance|weekly/.test(tl)&&!day){sect='sched';return;}
+        if(/coaching|notes|tips/.test(tl)){sect='notes';day=null;return;}
+        if(h&&sect!=='plan'){sect='';return;}
+      }
+      var isRow=raw.indexOf('|')>=0&&(raw.match(/\|/g)||[]).length>=2;
+      if(sect==='sched'||(sect!=='plan'&&!day&&isRow&&/day/i.test(raw)&&out.sched.length===0)){
+        if(isRow){
+          var c=raw.replace(/^\||\|$/g,'').split('|').map(clean);
+          if(c.join('').replace(/[-:\s]/g,'')==='')return;
+          if(/^day$/i.test(c[0]))return;
+          out.sched.push([c[0],c.slice(1).join(' - ')]);
+        }
         return;
       }
-      if((raw.startsWith('-')||raw.startsWith('*'))&&stripped.length>2){
-        var item=stripped.replace(/^[-*]\s*/,'');
-        if(mode==='warm')sec.warm.push(item);
-        else if(mode==='cool')sec.cool.push(item);
-        else if(mode==='none'&&sec.warm.length<6)sec.warm.push(item);
+      if(sect==='why'){out.why.push(clean(raw));return;}
+      if(sect==='nutri'){var n=clean(raw.replace(/^[-*]\s*/,''));if(n)out.nutri.push(n);return;}
+      if(sect==='notes'){
+        var item=raw.replace(/^(\d+[.)]|[-*])\s+/,'');
+        var tm=item.match(/^\*\*(.+?)\*\*\s*[:\-]?\s*(.*)$/);
+        if(tm)out.notes.push({t:clean(tm[1]).replace(/[:.]$/,''),b:clean(tm[2])});
+        else{var cc=clean(item);if(cc){var k=cc.indexOf(':');if(k>2&&k<40)out.notes.push({t:cc.slice(0,k),b:cc.slice(k+1).trim()});else out.notes.push({t:'',b:cc});}}
+        return;
       }
+      if(!day)return;
+      // inside a day
+      if(isRow){
+        var cells=raw.replace(/^\||\|$/g,'').split('|').map(clean);
+        if(cells.join('').replace(/[-:\s]/g,'')==='')return;
+        var low=cells.map(function(x){return x.toLowerCase();});
+        if(low.some(function(x){return /^(exercises?|movement|drill)$/.test(x);})){
+          tbl={};
+          low.forEach(function(x,i){
+            if(/^(exercises?|movement|drill)$/.test(x))tbl.name=i;
+            else if(/^sets?$/.test(x))tbl.sets=i;
+            else if(/^reps?$/.test(x))tbl.reps=i;
+            else if(/sets.*reps|reps.*sets/.test(x))tbl.sr=i;
+            else if(/weight|load/.test(x))tbl.wt=i;
+            else if(/rest/.test(x))tbl.rest=i;
+            else if(/how|cue|note|coach|descr|tip/.test(x))tbl.cue=i;
+          });
+          if(!lastWasRow||!block){block={label:label,rows:[]};day.blocks.push(block);}
+          lastWasRow=true;return;
+        }
+        if(!tbl){
+          var L=cells.length;
+          if(L>=7)tbl={name:1,sets:2,reps:3,wt:4,rest:5,cue:6};
+          else if(L===6)tbl={name:0,sets:1,reps:2,wt:3,rest:4,cue:5};
+          else if(L===5)tbl={name:0,sr:1,wt:2,rest:3,cue:4};
+          else tbl={name:0,sr:1,cue:2};
+        }
+        if(!block){block={label:label,rows:[]};day.blocks.push(block);}
+        var g=function(k){return tbl[k]!=null?(cells[tbl[k]]||''):'';};
+        var row={name:g('name'),sets:g('sets'),reps:g('reps'),sr:g('sr'),wt:g('wt'),rest:g('rest'),cue:g('cue')};
+        if(!row.name||/^\d+$/.test(row.name)&&cells.length>1){var alt=cells.filter(function(x){return x&&!/^\d+$/.test(x);})[0];row.name=alt||row.name;}
+        day.blocks[day.blocks.length-1].rows.push(row);lastWasRow=true;return;
+      }
+      lastWasRow=false;
+      var tx=clean(raw);var lw=tx.toLowerCase();
+      var isHead=!!(bold||/^\*\*/.test(raw)&&/\*\*\s*:?$/.test(raw)||(tx.length<60&&/:$/.test(tx)));
+      if(/warm[- ]?up/.test(lw)&&(isHead||tx.length<40)){mode='warm';return;}
+      if(/cool[- ]?down/.test(lw)&&(isHead||tx.length<40)){mode='cool';return;}
+      if(isHead){mode='main';label=tx.replace(/:$/,'');tbl=null;block=null;return;}
+      var itemT=clean(raw.replace(/^([-*•]|\d+[.)])\s+/,''));
+      if(!itemT)return;
+      if(mode==='warm')day.warm.push(itemT);
+      else if(mode==='cool')day.cool.push(itemT);
+      else day.extra.push(itemT);
     });
-  });
+    return out;
+  }
 
-  function dayAccent(h){
-    var l=h.toLowerCase();
-    if(l.includes('run')||l.includes('condition')||l.includes('sprint'))return BLU;
-    if(l.includes('explos')||l.includes('jump')||l.includes('power'))return GRN;
+  var P=parsePlan(PLAN);
+  var totalDays=0;P.phases.forEach(function(p){totalDays+=p.days.length;});
+
+  // ---------- DOC ----------
+  var W=210,H=297,ML=14,CW=182,BOT=281;
+  var INK=[24,24,34],MID=[102,102,118],SOFT=[150,150,165],LINE=[222,222,230],TINT=[246,246,250],
+      RED=[214,40,52],GRN=[30,150,84],BLU=[40,100,200],GOLD=[176,128,20];
+  var doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  var y=0,pg=0,cont='';
+
+  function setC(c){doc.setTextColor(c[0],c[1],c[2]);}
+  function fillC(c){doc.setFillColor(c[0],c[1],c[2]);}
+  function drawC(c){doc.setDrawColor(c[0],c[1],c[2]);}
+  function box(x,yy,w,h,c){fillC(c);doc.rect(x,yy,w,h,'F');}
+  function txt(s,x,yy,sz,bold,c,opt){doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(sz);setC(c||INK);doc.text(String(s),x,yy,opt||{});}
+  function wrap(s,w,sz,bold){doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(sz);return doc.splitTextToSize(String(s),w);}
+
+  function newPage(){
+    doc.addPage();pg++;box(0,0,W,3,RED);y=14;
+    if(cont){txt(cont,ML,y,6.5,true,SOFT);y+=6;}
+  }
+  function ensure(h){if(y+h>BOT)newPage();}
+
+  // first page already exists
+  pg=1;box(0,0,W,6,RED);
+
+  // ---------- COVER ----------
+  txt('Maxwell',ML,28,30,true,RED);
+  doc.setFont('helvetica','bold');doc.setFontSize(30);
+  txt('Training',ML+doc.getTextWidth('Maxwell ')+0.5,28,30,true,INK);
+  txt('PERSONALIZED TRAINING PROGRAM',ML,35,7,true,SOFT);
+  box(ML,40,22,1.2,RED);
+
+  txt('PROGRAM BUILT FOR',ML,54,7,true,MID);
+  txt(nm.toUpperCase().substring(0,28),ML,65,24,true,INK);
+  var meta=[];
+  if(lvl)meta.push(lvl.charAt(0).toUpperCase()+lvl.slice(1));
+  if(days)meta.push(days+' days / week');
+  if(hrs)meta.push(hrs+' min sessions');
+  if(AA.playsport==='yes'&&AA.sport)meta.push(clean(AA.sport)+(AA.position?' - '+clean(AA.position):''));
+  if(meta.length)txt(meta.join('   |   '),ML,73,8.5,false,MID);
+  y=84;
+
+  if(P.why.length){
+    txt('WHY THIS PROGRAM',ML,y,7,true,RED);y+=5;
+    var wl=wrap(P.why.join(' '),CW,8.5,false).slice(0,6);
+    wl.forEach(function(l){txt(l,ML,y,8.5,false,INK);y+=4.6;});
+    y+=5;
+  }
+
+  // nutrition cards
+  var mac={};
+  P.nutri.forEach(function(s){
+    var m=s.match(/(protein|calories|carbs?|carbohydrates?|fats?)\s*:?\s*(.+)/i);
+    if(m){var k=m[1].toLowerCase().charAt(0);mac[k]=m[2].replace(/\/?\s*(per\s*)?day/i,'').trim();}
+  });
+  var calM=P.nutri.join(' | ').match(/calories\s*:?\s*([\d,]+)/i),carbM=P.nutri.join(' | ').match(/carb\w*\s*:?\s*([\d,]+\s*g?)/i);
+  var cards=[['PROTEIN',mac.p||''],['CALORIES',calM?calM[1]:''],['CARBS',carbM?carbM[1].replace(/\s/g,''):''],['FATS',mac.f||'']];
+  if(cards.some(function(c){return c[1];})){
+    txt('DAILY NUTRITION',ML,y,7,true,RED);y+=4;
+    cards.forEach(function(c,i){
+      var x=ML+i*46;
+      box(x,y,43,20,TINT);box(x,y,43,1.5,RED);
+      txt(c[0],x+4,y+7,6,true,MID);
+      txt(c[1]||'-',x+4,y+15,15,true,INK);
+    });
+    y+=26;
+  }
+
+  // weekly schedule
+  if(P.sched.length){
+    txt('YOUR WEEK',ML,y,7,true,RED);y+=4;
+    var cw=CW/7,sh=24;
+    P.sched.slice(0,7).forEach(function(r,i){
+      var x=ML+i*cw,rest=/rest|off|recover/i.test(r[1])&&!/active/i.test(r[1]);
+      box(x,y,cw-1,sh,rest?[250,250,252]:TINT);box(x,y,cw-1,1.2,rest?LINE:RED);
+      txt(r[0].substring(0,3).toUpperCase(),x+cw/2-0.5,y+6,6.5,true,rest?SOFT:RED,{align:'center'});
+      var ls=wrap(r[1],cw-4,6,false).slice(0,4);
+      ls.forEach(function(l,k){txt(l,x+cw/2-0.5,y+11+k*3.3,6,false,rest?SOFT:INK,{align:'center'});});
+    });
+    y+=sh+7;
+  }
+
+  // phases overview
+  if(P.phases.length&&totalDays){
+    txt('PROGRAM STRUCTURE',ML,y,7,true,RED);y+=5;
+    P.phases.forEach(function(p){
+      if(y>BOT-6)return;
+      box(ML,y-3.4,2,5,RED);
+      txt(p.name.substring(0,70),ML+5,y,8.5,true,INK);
+      txt(p.days.length+' sessions / week',W-ML,y,7.5,false,MID,{align:'right'});
+      y+=6.5;
+    });
+    y+=2;
+  }
+  if(y<BOT-18){
+    box(ML,y,CW,15,TINT);
+    var how=wrap('How to use it: do the sessions in order, log your weights in the boxes, and add weight only when every rep is clean. Each phase lasts the weeks shown - move to the next phase on schedule.',CW-8,7.5,false);
+    how.slice(0,3).forEach(function(l,i){txt(l,ML+4,y+5.5+i*3.9,7.5,false,MID);});
+  }
+
+  // ---------- DAY PAGES ----------
+  var NW=76,SW=24,WW=26,RW=16,LW=CW-8-NW-SW-WW-RW; // log width
+  function phaseWeeks(name){
+    var m=String(name).match(/weeks?\s*(\d+)\s*(?:-|to)\s*(\d+)/i);
+    return m?[parseInt(m[1]),parseInt(m[2])]:null;
+  }
+  function accent(t){
+    var l=t.toLowerCase();
+    if(/run|condition|sprint|cardio/.test(l))return BLU;
+    if(/jump|power|explos|plyo/.test(l))return GRN;
     return RED;
   }
 
-  // Determine week count
-  var weekCount=12;
-  var durKey=String(A.duration||'12weeks');
-  if(durKey.includes('4'))weekCount=4;
-  else if(durKey.includes('8'))weekCount=8;
-  else if(durKey.includes('16'))weekCount=16;
+  function tableHeader(wk){
+    box(ML,y,CW,7,INK);
+    var x=ML+8;
+    txt('EXERCISE',x+2,y+4.7,6,true,[255,255,255]);x+=NW;
+    txt('SETS x REPS',x+SW/2,y+4.7,6,true,[255,255,255],{align:'center'});x+=SW;
+    txt('WEIGHT',x+WW/2,y+4.7,6,true,[255,255,255],{align:'center'});x+=WW;
+    txt('REST',x+RW/2,y+4.7,6,true,[255,255,255],{align:'center'});x+=RW;
+    for(var i=0;i<3;i++){txt(wk?('W'+(wk[0]+i)):('LOG '+(i+1)),x+(LW/3)*(i+0.5),y+4.7,5.5,true,[255,255,255],{align:'center'});}
+    y+=7;
+  }
 
-  function renderDay(sec,dayIdx,weekNum){
-    var acc=dayAccent(sec.header);
-    newPage();
+  function renderDay(d,phase,idx){
+    var ttl=d.title;var k=ttl.indexOf(':');
+    var lab=k>0?ttl.slice(0,k).trim():ttl;var sess=k>0?ttl.slice(k+1).trim():'';
+    if(!sess){var dm=ttl.split(/\s-\s/);if(dm.length>1){lab=dm[0].trim();sess=dm.slice(1).join(' - ').trim();}else sess=ttl;}
+    var acc=accent(sess+' '+lab);
+    var wk=phaseWeeks(phase.name);
+    cont=lab.toUpperCase().substring(0,40)+' (continued)';
+    doc.addPage();pg++;
+    box(0,0,W,3,acc);
+    // banner
+    box(0,3,W,34,TINT);
+    txt(clean(phase.name).toUpperCase().substring(0,70),ML,12,6.5,true,acc);
+    txt(lab.toUpperCase().substring(0,40),ML,19,8,true,MID);
+    var sl=wrap(sess.toUpperCase(),150,17,true).slice(0,2);
+    sl.forEach(function(l,i){txt(l,ML,28+i*7,17,true,INK);});
+    if(hrs)txt(hrs+' MIN',W-ML,12,7,true,acc,{align:'right'});
+    y=44;
 
-    // Banner
-    bx(0,0,W,46,CARD);bx(0,0,4,46,acc);bx(0,45,W,1.5,acc);
-    var hparts=sec.header.split(/\s*--\s*|\s*:\s*/);
-    var topLabel='DAY '+(dayIdx+1);
-    if(weekNum>1)topLabel='WEEK '+weekNum+' -- DAY '+(dayIdx+1);
-    t(10,7,topLabel,7.5,true,acc);
-    var sessType=cl(hparts[1]||hparts[0]||'Training').toUpperCase();
-    doc.setFont('helvetica','bold');doc.setFontSize(16);doc.setTextColor(...INK);
-    doc.text(sessType.substring(0,44),10,19,{maxWidth:170});
-    t(W-ML-22,7,hrs+' MIN',7,true,acc);
+    function listBox(title,items,tc,bg){
+      var lines=[];items.forEach(function(it){wrap(it,CW-12,7.5,false).forEach(function(l,i){lines.push((i===0?'- ':'  ')+l);});});
+      var h=8+lines.length*4+2;
+      ensure(h);
+      box(ML,y,CW,h,bg);box(ML,y,2.2,h,tc);
+      txt(title,ML+6,y+5,6.5,true,tc);
+      lines.forEach(function(l,i){txt(l,ML+6,y+10+i*4,7.5,false,INK);});
+      y+=h+4;
+    }
 
-    var y=50;
+    if(d.warm.length)listBox('WARM-UP',d.warm,GRN,[238,248,242]);
 
-    // Warm-up
-    var warmItems=sec.warm.slice(0,5);
-    if(warmItems.length===0)warmItems=['Dynamic stretching and mobility  5 min'];
-    var wh=7+warmItems.length*5.0;
-    bx(ML,y,CW,wh,[10,28,16]);bx(ML,y,3,wh,GRN);
-    doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(...GRN);
-    doc.text('WARM-UP  (10 min)',ML+5,y+4.5);
-    var wy=y+9.5;
-    warmItems.forEach(function(w){
-      doc.setFont('helvetica','normal');doc.setFontSize(6.2);doc.setTextColor(90,195,125);
-      doc.text('--  '+cl(w).substring(0,84),ML+6,wy);wy+=5.0;
-    });
-    y+=wh+4;
-
-    // Table header
-    var HDR=9;
-    bx(ML,y,TOT,HDR,[10,10,22]);
-    doc.setFont('helvetica','bold');doc.setFontSize(5.5);doc.setTextColor(155,153,175);
-    doc.text('EXERCISE  /  WEIGHT  /  COACHING CUE',ML+3,y+5.8);
-    doc.setDrawColor(...LITE);doc.setLineWidth(0.05);
-    doc.line(ML+NW,y,ML+NW,y+HDR);
-    doc.text('SETS x REPS',ML+NW+SW/2,y+5.8,{align:'center'});
-    doc.line(ML+NW+SW,y,ML+NW+SW,y+HDR);
-    doc.text('REST',ML+NW+SW+RS/2,y+5.8,{align:'center'});
-    doc.line(ML+NW+SW+RS,y,ML+NW+SW+RS,y+HDR);
-    doc.text('TRACK',ML+NW+SW+RS+TK/2,y+5.8,{align:'center'});
-    y+=HDR;
-
-    var LETTERS='ABCDEFGH';
-    var exRows=sec.exs.slice(0,6);
-    if(exRows.length===0){
-      for(var ri=0;ri<5;ri++){
-        bx(ML,y,TOT,18,ri%2===0?CARD:C2);y+=18;
-      }
-    } else {
-      exRows.forEach(function(cells,ri){
-        // Parse columns -- AI format: |letter|name|sets|reps|weight|rest|cue|
-        var exName,setsReps,startWt,restT,cue;
-        var c0=cl(cells[0]||'');
-        if(c0.length<=2&&cells.length>=6){
-          exName=cl(cells[1]||'');
-          var s2=cl(cells[2]||''),s3=cl(cells[3]||'');
-          setsReps=(s2&&s3)?s2+' x '+s3:(s2||s3);
-          // Round weight to nearest 5
-          var rawWt=cl(cells[4]||'');
-          var wtNum=parseInt(rawWt.replace(/[^\d]/g,''));
-          startWt=wtNum?r5(wtNum)+'lbs':rawWt;
-          restT=cl(cells[5]||'');
-          cue=cl(cells[6]||'');
-        } else if(cells.length>=5){
-          exName=c0;
-          setsReps=cl(cells[1]||'');
-          var rawWt2=cl(cells[2]||'');
-          var wtNum2=parseInt(rawWt2.replace(/[^\d]/g,''));
-          startWt=wtNum2?r5(wtNum2)+'lbs':rawWt2;
-          restT=cl(cells[3]||'');
-          cue=cl(cells[4]||'');
-        } else {
-          exName=c0;setsReps=cl(cells[1]||'');startWt=cl(cells[2]||'');restT=cl(cells[3]||'');cue=cl(cells[4]||'');
-        }
-        if(!setsReps||setsReps==='x')setsReps=cl(cells[1]||'');
-
-        // DYNAMIC ROW HEIGHT -- expands to fit cue text
-        var RH=calcRowH(cue);
-
-        var rbg=ri%2===0?CARD:C2;
-        bx(ML,y,TOT,RH,rbg);
-        doc.setDrawColor(...LITE);doc.setLineWidth(0.05);doc.rect(ML,y,TOT,RH,'D');
-
-        // Badge
-        bx(ML,y,7,RH,acc);
-        doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(255,255,255);
-        doc.text(LETTERS[ri],ML+3.5,y+RH/2+2,{align:'center'});
-
-        // Name
-        doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(...INK);
-        var nameLines=doc.splitTextToSize(exName,NW-12);
-        doc.text(nameLines[0]||'',ML+9,y+5.5);
-
-        // Weight in gold -- rounded
-        doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(...GOLD);
-        doc.text('Weight: '+startWt.substring(0,26),ML+9,y+11);
-
-        // Cue -- wraps to fit, NEVER cuts off
-        doc.setFont('helvetica','normal');doc.setFontSize(6.2);doc.setTextColor(...MID);
-        var cueLines=doc.splitTextToSize(cue,NW-13);
-        var cyOff=y+16;
-        cueLines.slice(0,2).forEach(function(cl2){
-          doc.text(cl2,ML+9,cyOff);cyOff+=4.2;
-        });
-
-        // Dividers
-        [NW,NW+SW,NW+SW+RS].forEach(function(dx){
-          doc.setDrawColor(...LITE);doc.setLineWidth(0.05);
-          doc.line(ML+dx,y,ML+dx,y+RH);
-        });
-
-        // Sets x Reps
-        doc.setFont('helvetica','bold');doc.setFontSize(9.5);doc.setTextColor(...INK);
-        doc.text(setsReps.substring(0,12),ML+NW+SW/2,y+RH/2+1.5,{align:'center'});
-
-        // Rest
-        doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(...MID);
-        doc.text(restT.substring(0,10),ML+NW+SW+RS/2,y+RH/2+1,{align:'center'});
-
-        // Track boxes
-        var BX=ML+NW+SW+RS+1;var BW3=(TK-2)/3;
-        for(var b=0;b<3;b++){
-          bx(BX+b*BW3,y+2,BW3-0.5,RH-4,[18,18,30]);
-          doc.setDrawColor(52,52,72);doc.setLineWidth(0.05);
-          doc.rect(BX+b*BW3,y+2,BW3-0.5,RH-4,'D');
-        }
-        y+=RH;
+    var n=0;
+    d.blocks.forEach(function(b){
+      if(!b.rows.length)return;
+      if(b.label&&!/^main work$/i.test(b.label)){ensure(20);txt(b.label.toUpperCase().substring(0,70),ML,y+3,7,true,acc);y+=6;}
+      ensure(22);tableHeader(wk);
+      b.rows.forEach(function(r,ri){
+        var sr=(r.sets&&r.reps)?(r.sets+' x '+r.reps):(r.sr||r.sets||r.reps||'-');
+        var wt=r.wt||'';var wn=wt.match(/^(\d+(?:\.\d+)?)\s*(lbs?|kg)?$/i);
+        if(wn&&(!wn[2]||/lb/i.test(wn[2])))wt=r5(parseFloat(wn[1]))+' lbs';
+        var nl=wrap(r.name,NW-4,8.5,true).slice(0,2);
+        var cl=r.cue?wrap(r.cue,NW-4,6.8,false).slice(0,5):[];
+        var rh=Math.max(13,4+nl.length*4+cl.length*3.3+3);
+        if(y+rh>BOT){newPage();tableHeader(wk);}
+        box(ML,y,CW,rh,ri%2===0?[255,255,255]:TINT);
+        drawC(LINE);doc.setLineWidth(0.15);doc.line(ML,y+rh,ML+CW,y+rh);
+        box(ML,y,8,rh,acc);
+        n++;txt(String(n),ML+4,y+rh/2+1.5,8.5,true,[255,255,255],{align:'center'});
+        var x=ML+8;
+        nl.forEach(function(l,i){txt(l,x+2,y+5+i*4,8.5,true,INK);});
+        cl.forEach(function(l,i){txt(l,x+2,y+5+nl.length*4+i*3.3,6.8,false,MID);});
+        x+=NW;
+        var sl2=wrap(sr,SW-2,9,true).slice(0,2);
+        sl2.forEach(function(l,i){txt(l,x+SW/2,y+rh/2+1.3-(sl2.length-1)*2+i*4,sl2.length>1?7.5:9,true,INK,{align:'center'});});
+        x+=SW;
+        var wl2=wrap(wt||'-',WW-2,7.5,true).slice(0,2);
+        wl2.forEach(function(l,i){txt(l,x+WW/2,y+rh/2+1.2-(wl2.length-1)*2+i*3.6,7.5,true,GOLD,{align:'center'});});
+        x+=WW;
+        var rl=wrap(r.rest||'-',RW-1,7,false).slice(0,2);
+        rl.forEach(function(l,i){txt(l,x+RW/2,y+rh/2+1.2-(rl.length-1)*2+i*3.4,7,false,MID,{align:'center'});});
+        x+=RW;
+        drawC([205,205,215]);doc.setLineWidth(0.2);
+        for(var i=0;i<3;i++){doc.rect(x+(LW/3)*i+1,y+rh/2-3,LW/3-2,6,'D');}
+        y+=rh;
       });
-    }
-
-    // Cool-down pinned to bottom
-    var coolItems=sec.cool.slice(0,5);
-    if(coolItems.length===0)coolItems=['Full body stretch  5 min'];
-    var cdh=7+coolItems.length*5;var cdy=283-cdh;
-    bx(ML,cdy,CW,cdh,[10,14,34]);bx(ML,cdy,3,cdh,BLU);
-    doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(...BLU);
-    doc.text('COOL-DOWN  (5-8 min)',ML+5,cdy+4.5);
-    var coY=cdy+9.5;
-    coolItems.forEach(function(item){
-      doc.setFont('helvetica','normal');doc.setFontSize(6.2);doc.setTextColor(90,135,210);
-      doc.text('--  '+cl(item).substring(0,84),ML+6,coY);coY+=5;
+      y+=5;
     });
+
+    if(d.extra.length)listBox('SESSION NOTES',d.extra,GOLD,[252,247,236]);
+    if(d.cool.length)listBox('COOL-DOWN',d.cool,BLU,[238,243,252]);
   }
 
-  if(sections.length===0){
-    newPage();
-    doc.setFont('helvetica','bold');doc.setFontSize(14);doc.setTextColor(...INK);
-    doc.text('Your Training Plan',ML,30);
-    var ty=42;
-    planLines.forEach(function(line){
-      if(ty>280){addFooter();doc.addPage();pg++;bx(0,0,W,297,'F');ty=20;}
-      var s=cl(line.trim());if(!s){ty+=3;return;}
-      if(line.match(/^###/)){doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(...RED);doc.text(s.substring(0,80),ML,ty);ty+=8;}
-      else if(line.match(/^##/)){doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...RED);doc.text(s.substring(0,80),ML,ty);ty+=7;}
-      else if(line.startsWith('-')){doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(...MID);doc.text('-- '+s.replace(/^-\s*/,'').substring(0,80),ML,ty);ty+=5;}
-      else if(!line.includes('|')){doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(...INK);var wl=doc.splitTextToSize(s,CW);doc.text(wl[0]||'',ML,ty);ty+=5;}
-    });
+  if(totalDays){
+    P.phases.forEach(function(p){p.days.forEach(function(d,i){renderDay(d,p,i);});});
   } else {
-    for(var w=1;w<=weekCount;w++){
-      sections.forEach(function(sec,di){renderDay(sec,di,w);});
-    }
+    // fallback: readable plain rendering of whatever the AI returned
+    cont='Your Training Plan';doc.addPage();pg++;box(0,0,W,3,RED);y=18;
+    txt('Your Training Plan',ML,y,18,true,INK);y+=10;
+    PLAN.split(/\r?\n/).forEach(function(line){
+      var raw=line.trim();if(!raw){y+=2;return;}
+      if(/^\|?[\s|:-]+\|?$/.test(raw))return;
+      var isH=/^#{1,6}\s/.test(raw);
+      var s=raw.indexOf('|')>=0?clean(raw.replace(/^\||\|$/g,'').split('|').map(clean).join('  -  ')):clean(raw);
+      if(!s)return;
+      var ls=wrap(s,CW,isH?10:8,isH);
+      ensure(ls.length*4.5+3);
+      if(isH){y+=2;ls.forEach(function(l){txt(l,ML,y,10,true,RED);y+=5;});}
+      else ls.forEach(function(l){txt(l,ML,y,8,false,INK);y+=4.3;});
+    });
   }
 
-  // NOTES PAGE
-  newPage();
-  bx(0,0,W,5,RED);
-  doc.setFont('helvetica','bold');doc.setFontSize(22);doc.setTextColor(...INK);
-  doc.text('Coaching Notes',ML,17);
-  var ny=29;
-  var notesArr=[
-    ['Add weight every week','Start at the weights on the cover page. Hit ALL reps with good form -- add 5lbs to barbells, 2.5lbs to dumbbells. All weights are rounded to the nearest 5lbs so you can always load them. Miss any reps -- stay at the same weight one more week.'],
-    ['Dips','Include weighted dips on every push day. Lean forward for chest emphasis. Stay upright for tricep emphasis. Add 5lbs every 2 weeks. One of the best exercises available.'],
-    ['Deload weeks 4 and 8','Drop all weights 40%, cut sets by 1. Non-negotiable. This is when your body grows. Skip it and you plateau.'],
-    ['12-week structure','Weeks 1-3: Build. Week 4: Deload. Weeks 5-7: Heavier. Week 8: Deload. Weeks 9-11: Peak. Week 12: Test all maxes.'],
-    ['Kettlebells','KB swings are about explosive hip extension -- not squatting. KB Turkish get-up is slow and deliberate. KB clean and press builds shoulder stability you cannot get from machines.'],
-    ['Sleep','7-9 hours every night. Muscle is built during sleep. Non-negotiable.'],
-    ['Missed session','Do not double up. Continue where you left off. Two missed in a row -- reduce weights 10% next session.'],
-  ];
-  notesArr.forEach(function([title,body]){
-    var blines=doc.splitTextToSize(body,CW-12);
-    var bh=7+blines.length*4.2;
-    if(ny>280-bh)return;
-    bx(ML,ny,CW,bh,CARD);bx(ML,ny,3,bh,RED);
-    doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(...INK);
-    doc.text(title,ML+6,ny+5);
-    doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(...MID);
-    blines.forEach(function(bl,bi){doc.text(bl,ML+6,ny+10.5+bi*4.2);});
-    ny+=bh+5;
+  // ---------- COACHING NOTES ----------
+  var notes=P.notes.slice();
+  if(!notes.length){
+    notes=[
+      {t:'Add weight gradually',b:'Hit all reps with good form before adding load. Miss reps - stay at the same weight one more week.'},
+      {t:'Deload',b:'Every 4th week, drop weights about 40% and cut a set. This is when your body adapts.'},
+      {t:'Sleep',b:'7-9 hours a night. Progress is built during recovery.'},
+      {t:'Missed session',b:'Do not double up. Continue where you left off. Two missed in a row - reduce weights 10% next session.'}
+    ];
+  }
+  cont='Coaching Notes (continued)';
+  doc.addPage();pg++;box(0,0,W,3,RED);
+  txt('Coaching Notes',ML,22,22,true,INK);box(ML,26,22,1.2,RED);y=38;
+  notes.forEach(function(nt){
+    var bl=wrap(nt.b,CW-12,8,false);var h=(nt.t?9:5)+bl.length*4.2+3;
+    ensure(h+4);
+    box(ML,y,CW,h,TINT);box(ML,y,2.2,h,RED);
+    var yy=y+5;
+    if(nt.t){txt(nt.t,ML+6,yy,8.5,true,INK);yy+=5;}
+    bl.forEach(function(l){txt(l,ML+6,yy,8,false,MID);yy+=4.2;});
+    y+=h+4;
   });
-  bx(ML,ny+4,CW,22,CARD);bx(ML,ny+4,CW,2,RED);
-  doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(...INK);
-  doc.text('Maxwell Ionita  --  Maxwell Training',ML+CW/2,ny+13,{align:'center'});
-  doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(...MID);
-  doc.text('@Maxwell__Training  --  maxwelltraining.org',ML+CW/2,ny+20,{align:'center'});
+  ensure(34);y+=4;
+  box(ML,y,CW,22,INK);
+  txt('Maxwell Ionita  -  Maxwell Training',ML+CW/2,y+10,11,true,[255,255,255],{align:'center'});
+  txt('@Maxwell__Training   |   maxwelltraining.org',ML+CW/2,y+16.5,7.5,false,[200,200,212],{align:'center'});
+  y+=28;
+  var disc=P.disclaimer||'DISCLAIMER: Educational fitness guidance only. Not medical advice. Stop any exercise that causes pain. Consult a healthcare professional if injured.';
+  var dl=wrap(disc,CW,6.5,false);ensure(dl.length*3.4+2);
+  dl.forEach(function(l){txt(l,ML,y,6.5,false,SOFT);y+=3.4;});
 
-  addFooter();
+  // ---------- FOOTERS ----------
+  var total=doc.getNumberOfPages();
+  for(var p=2;p<=total;p++){
+    doc.setPage(p);
+    drawC(LINE);doc.setLineWidth(0.2);doc.line(ML,288,W-ML,288);
+    txt('Maxwell Training  |  '+nm,ML,292.5,6.5,false,SOFT);
+    txt('maxwelltraining.org',W/2,292.5,6.5,false,SOFT,{align:'center'});
+    txt(p+' / '+total,W-ML,292.5,6.5,false,SOFT,{align:'right'});
+  }
   doc.save('MaxwellTraining_'+nm.replace(/\s+/g,'_')+'_Plan.pdf');
-
 }
 window.makePDF = makePDF;
 </script>
