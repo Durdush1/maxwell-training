@@ -1393,7 +1393,7 @@ input[type="range"] { width: 100%; accent-color: var(--red); height: 6px; cursor
         <div class="plan-label">Beginner</div>
         <div class="plan-name">Starter</div>
         <div class="plan-desc">Built for athletes getting started. A complete personalized program matched to your level, schedule, and equipment.</div>
-        <div class="plan-price">$24</div>
+        <div class="plan-price">$19</div>
         <div class="plan-from">one-time payment</div>
         <ul class="plan-feats">
           <li>Fully personalized program</li>
@@ -1410,7 +1410,7 @@ input[type="range"] { width: 100%; accent-color: var(--red); height: 6px; cursor
         <div class="plan-label">Intermediate</div>
         <div class="plan-name">Performance</div>
         <div class="plan-desc">For athletes who train consistently and want real, periodized structure that builds on itself over time.</div>
-        <div class="plan-price">$39</div>
+        <div class="plan-price">$29</div>
         <div class="plan-from">one-time payment</div>
         <ul class="plan-feats">
           <li>Everything in Starter</li>
@@ -1427,7 +1427,7 @@ input[type="range"] { width: 100%; accent-color: var(--red); height: 6px; cursor
         <div class="plan-label">Advanced</div>
         <div class="plan-name">Elite</div>
         <div class="plan-desc">For competitive athletes who want elite-level programming — periodized phases, Olympic lifts, and sport-specific blocks.</div>
-        <div class="plan-price">$59</div>
+        <div class="plan-price">$39</div>
         <div class="plan-from">one-time payment</div>
         <ul class="plan-feats">
           <li>Everything in Performance</li>
@@ -1449,9 +1449,9 @@ input[type="range"] { width: 100%; accent-color: var(--red); height: 6px; cursor
           <thead>
             <tr>
               <th scope="col">Feature</th>
-              <th scope="col">Starter<span class="compare-price">$24</span></th>
-              <th scope="col" class="compare-featured">Performance<span class="compare-price">$39</span></th>
-              <th scope="col">Elite<span class="compare-price">$59</span></th>
+              <th scope="col">Starter<span class="compare-price">$19</span></th>
+              <th scope="col" class="compare-featured">Performance<span class="compare-price">$29</span></th>
+              <th scope="col">Elite<span class="compare-price">$39</span></th>
             </tr>
           </thead>
           <tbody>
@@ -1748,12 +1748,12 @@ input[type="range"] { width: 100%; accent-color: var(--red); height: 6px; cursor
         <p>Download the complete PDF — every workout day, every weight, every coaching cue.</p>
 
         <div class="tier-switch" role="group" aria-label="Select plan tier">
-          <button class="tier-btn" onclick="selTier(this,'beginner')">Starter — $24</button>
-          <button class="tier-btn sel" onclick="selTier(this,'intermediate')">Performance — $39</button>
-          <button class="tier-btn" onclick="selTier(this,'advanced')">Elite — $59</button>
+          <button class="tier-btn" onclick="selTier(this,'beginner')">Starter — $19</button>
+          <button class="tier-btn sel" onclick="selTier(this,'intermediate')">Performance — $29</button>
+          <button class="tier-btn" onclick="selTier(this,'advanced')">Elite — $39</button>
         </div>
         <p style="font-size:0.9rem;color:var(--mid);margin-bottom:16px">
-          Selected: <strong id="pay-tier-name">Performance Plan</strong> &mdash; <strong id="pay-price-display">$39</strong>
+          Selected: <strong id="pay-tier-name">Performance Plan</strong> &mdash; <strong id="pay-price-display">$29</strong>
         </p>
 
         <div class="name-email">
@@ -1885,9 +1885,9 @@ function openModal(){
 
 // ── Pricing — single source of truth ──────────────────────────────────────
 window._PRICES_DEFINED = window._PRICES_DEFINED || (window.PRICES = {
-  beginner:     { amount: 24, label: 'Starter',      desc: 'Starter Plan'      },
-  intermediate: { amount: 39, label: 'Performance',  desc: 'Performance Plan'  },
-  advanced:     { amount: 59, label: 'Elite', desc: 'Elite Plan' },
+  beginner:     { amount: 19, label: 'Starter',      desc: 'Starter Plan'      },
+  intermediate: { amount: 29, label: 'Performance',  desc: 'Performance Plan'  },
+  advanced:     { amount: 39, label: 'Elite', desc: 'Elite Plan' },
 });
 
 // ── Page routing ──────────────────────────────────────────────────────────
@@ -2480,9 +2480,9 @@ window.doAdj = async function() {
 <script>
 
 window.PRICES = {
-  beginner:     { amount: 24, label: 'Starter',     desc: 'Starter Plan' },
-  intermediate: { amount: 39, label: 'Performance', desc: 'Performance Plan' },
-  advanced:     { amount: 59, label: 'Elite',       desc: 'Elite Plan' },
+  beginner:     { amount: 19, label: 'Starter',     desc: 'Starter Plan' },
+  intermediate: { amount: 29, label: 'Performance', desc: 'Performance Plan' },
+  advanced:     { amount: 39, label: 'Elite',       desc: 'Elite Plan' },
 };
 const STRIPE_LINKS = {
   beginner:     'https://buy.stripe.com/3cI00ieP545v9Y932K4gg00',
@@ -2532,6 +2532,7 @@ window.doCheckout = async function() {
 
 
 window.dlPDF = async function() {
+  if(!window._paid){ announce('Payment not confirmed'); return; }
   // Restore from sessionStorage if needed
   try {
     if(!window.genPlanText || window.genPlanText.length < 100) {
@@ -2561,21 +2562,32 @@ window.dlPDF = async function() {
 };
 async function checkReturn() {
   const params = new URLSearchParams(window.location.search);
-  if(!params.has('success') && !window.location.search.includes('success')) return;
+  if(!params.has('success')) return;
+  const sid = params.get('session_id') || '';
   window.history.replaceState({}, '', window.location.pathname);
   showPg('confirm');
-  // Restore saved plan
   try {
     const saved = sessionStorage.getItem('mt_plan');
-    if(saved && saved.length > 100) {
-      window.genPlanText = saved;
-    }
+    if(saved && saved.length > 100) window.genPlanText = saved;
   } catch(e) {}
   const statusEl = document.getElementById('conf-status');
   const dlBtn = document.getElementById('conf-dl-btn');
-  if(statusEl) statusEl.textContent = 'Payment confirmed. Your program is ready to download.';
-  if(dlBtn) dlBtn.hidden = false;
-  announce('Payment confirmed — your program is ready');
+  if(dlBtn) dlBtn.hidden = true;
+  if(statusEl) statusEl.textContent = 'Verifying payment...';
+  window._paid = false;
+  try {
+    if(!/^cs_(live|test)_/.test(sid)) throw new Error('no session');
+    const r = await fetch('/api/verify?session_id=' + encodeURIComponent(sid));
+    const d = await r.json();
+    if(d && d.paid === true){
+      window._paid = true;
+      if(statusEl) statusEl.textContent = 'Payment confirmed. Your program is ready to download.';
+      if(dlBtn) dlBtn.hidden = false;
+      announce('Payment confirmed — your program is ready');
+      return;
+    }
+  } catch(e) {}
+  if(statusEl) statusEl.textContent = 'We could not confirm a payment. If you just paid, wait a moment and refresh. Otherwise contact us from the Contact page.';
 }
 
 
