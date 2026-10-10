@@ -1788,7 +1788,7 @@ input[type="range"] { width: 100%; accent-color: var(--red); height: 6px; cursor
 <div id="confirm" hidden>
   <div class="confirm-page" style="text-align:center;padding:80px 20px">
     <div style="font-size:3rem;margin-bottom:24px" aria-hidden="true">✓</div>
-    <h2>Payment received.</h2>
+    <h2 id="conf-h">Checking your payment…</h2>
     <p id="conf-status" style="color:var(--mid);margin-bottom:32px" aria-live="polite">Verifying payment...</p>
     <button id="conf-dl-btn" class="hero-btn" onclick="dlPDF()" hidden aria-label="Download your program PDF">
       Download your program PDF
@@ -2581,12 +2581,14 @@ async function checkReturn() {
     const d = await r.json();
     if(d && d.paid === true){
       window._paid = true;
+      const ch=document.getElementById('conf-h'); if(ch) ch.textContent='Payment received.';
       if(statusEl) statusEl.textContent = 'Payment confirmed. Your program is ready to download.';
       if(dlBtn) dlBtn.hidden = false;
       announce('Payment confirmed — your program is ready');
       return;
     }
   } catch(e) {}
+  { const ch=document.getElementById('conf-h'); if(ch) ch.textContent='We could not confirm your payment'; }
   if(statusEl) statusEl.textContent = 'We could not confirm a payment. If you just paid, wait a moment and refresh. Otherwise contact us from the Contact page.';
 }
 
