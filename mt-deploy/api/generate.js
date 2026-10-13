@@ -67,6 +67,15 @@ Rooted in Soviet-era general physical preparedness (GPP). Build in:
 - Hill sprints or stair runs for conditioning when goals include athletic/endurance
 - Progression by adding reps/rounds before adding weight. Emphasize consistency, density (more work in the same time), and mental toughness.
 
+GOATA TRAINING STYLE (use when training style includes "GOATA Training" or notes mention goata):
+Movement-first athletic development. Build in:
+- Every session opens with the GOATA warm-up flow (quadruped rocking, crawling and locomotion patterns, 90-90 hip flow, A-skips) and gives it real time, not a token set
+- Crawling and ground-movement patterns (bear crawl, cross-body crawl, lateral crawl, crab reach) as a core part of the main work, progressed by distance, speed or direction changes
+- Joint-by-joint mobility and end-range strength: loaded stretches, controlled articular rotations, isometric holds in long positions (30-60s)
+- Strength work stays simple and compound (squat, hinge, push, pull, carry) with clean technique over heavy loading; sets stay submaximal
+- Athletic movement skills: jumps and landings, rolls, sprawls, getting up and down from the floor, throws, changes of direction
+- Progression by movement quality, range, control and complexity first, load second. Note this in coaching notes.
+
 PRISON STYLE (use when training style includes "Prison Style" or notes mention prison, convict, or cell workout):
 Bodyweight-only high-volume calisthenics regardless of equipment — do NOT add barbells or machines. Build in:
 - Deck-of-cards or ladder/pyramid schemes: push-ups, squats, burpees, sit-ups, lunges (e.g. 1-10-1 pyramids, 500-rep days split into rounds)
@@ -76,7 +85,7 @@ Bodyweight-only high-volume calisthenics regardless of equipment — do NOT add 
 - Neck bridges and grip work (towel hangs) 
 - Short rest, high output, finish with a "burnout" set to failure. Progress by adding rounds or reducing rest.
 
-GOATA WARM-UP: Only for athletes/athletic performance goals. Includes: quadruped rocking 10 reps, cross-body crawl 10m, A-skips 2x20m, hip 90-90 flow 5 reps each side, sport-specific items. Do NOT use GOATA for strength/hypertrophy/calisthenics styles.
+GOATA WARM-UP: Only for athletes/athletic performance goals, or when the training style includes "GOATA Training". Includes: quadruped rocking 10 reps, cross-body crawl 10m, A-skips 2x20m, hip 90-90 flow 5 reps each side, sport-specific items. Do NOT use the GOATA warm-up for strength/hypertrophy/calisthenics styles unless the training style includes "GOATA Training".
 
 BLOCK PERIODIZATION (12+ week programs):
 Phase 1 Accumulation (Weeks 1-3): 67% 1RM, higher volume, learn patterns
@@ -118,7 +127,12 @@ OUTPUT FORMAT — follow exactly:
 **Main Work**
 | # | Exercise | Sets | Reps | Starting Weight | Rest | How To Do It |
 |---|----------|------|------|-----------------|------|--------------|
-[Every exercise — weight rounded to nearest 5lbs or Bodyweight. Include kettlebell work where equipment allows. Athletic/sport athletes get isometric holds. Combat sport athletes get combat conditioning block.]
+| A1 | [first exercise of a pair] | 3 | 8 | 135 | 0 sec | [cue] |
+| A2 | [second exercise of the same pair] | 3 | 10 | 95 | 90 sec | [cue] |
+| B1 | [stand-alone exercise] | 3 | 10 | 55 | 90 sec | [cue] |
+| C1 | [first exercise of the next pair] | 3 | 12 | 40 | 0 sec | [cue] |
+| C2 | [second exercise of that pair] | 3 | 12 | Bodyweight | 60 sec | [cue] |
+[Label every exercise with a group letter plus a number: A1, A2, B1, C1, C2, D1... Exercises that share a letter are done back to back as a circuit/superset: do A1, then A2 immediately, then rest, then repeat for all sets before moving to group B. A group can have 1, 2 or 3 exercises (A1 only; A1 A2; A1 A2 A3). Group letters go A, B, C, D in order. Put the rest in the Rest column of the LAST exercise in each group; earlier exercises in a group use 0 sec (or a short 10-15 sec transition). Pair non-competing exercises (upper push with upper pull, quad with hamstring, strength with a core or mobility move). Every exercise — weight rounded to nearest 5lbs or Bodyweight. Include kettlebell work where equipment allows. Athletic/sport athletes get isometric holds. Combat sport athletes get combat conditioning block.]
 
 **Cool-Down (5 min)**
 [4 specific stretches for muscles worked]
@@ -221,6 +235,7 @@ module.exports = async (req, res) => {
   const hasKettlebell = body.gym !== 'No equipment / Bodyweight only' || /kettlebell|kb/i.test(String(body.gymExtra||''));
   const styleStr = String(body.style||'');
   const isSoviet = /soviet|russian|spetsnaz|gpp/i.test(styleStr + ' ' + note);
+  const isGoata = /goata/i.test(styleStr + ' ' + note);
   const isPrison = /prison|convict|cell workout/i.test(styleStr + ' ' + note);
   const gymExtra = safeText(body.gymExtra || '', 200);
 
@@ -237,6 +252,7 @@ Equipment: ${body.gym}
 Extra equipment listed by athlete: ${gymExtra || 'none'} — USE any listed items (e.g. rings, sled, bands, heavy bag) in the program
 Kettlebells available: ${hasKettlebell ? 'YES — weave kettlebell programming in per the rules above' : 'NO — bodyweight only'}
 Old-School Soviet style: ${isSoviet ? 'YES — apply Soviet GPP rules above' : 'NO'}
+GOATA training style: ${isGoata ? 'YES — apply GOATA rules above' : 'NO'}
 Prison style: ${isPrison ? 'YES — bodyweight-only high-volume rules above, no barbells/machines' : 'NO'}
 Training style: ${body.style || 'Hybrid'}
 Sport: ${sport}
