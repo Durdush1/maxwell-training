@@ -2682,6 +2682,7 @@ function makePDF(){
           tbl={};
           low.forEach(function(x,i){
             if(/^(exercises?|movement|drill)$/.test(x))tbl.name=i;
+            else if(x===''||/^(no\.?|ex\.?)$/.test(x))tbl.lab=i;
             else if(/^sets?$/.test(x))tbl.sets=i;
             else if(/^reps?$/.test(x))tbl.reps=i;
             else if(/sets.*reps|reps.*sets/.test(x))tbl.sr=i;
@@ -2694,14 +2695,14 @@ function makePDF(){
         }
         if(!tbl){
           var L=cells.length;
-          if(L>=7)tbl={name:1,sets:2,reps:3,wt:4,rest:5,cue:6};
+          if(L>=7)tbl={lab:0,name:1,sets:2,reps:3,wt:4,rest:5,cue:6};
           else if(L===6)tbl={name:0,sets:1,reps:2,wt:3,rest:4,cue:5};
           else if(L===5)tbl={name:0,sr:1,wt:2,rest:3,cue:4};
           else tbl={name:0,sr:1,cue:2};
         }
         if(!block){block={label:label,rows:[]};day.blocks.push(block);}
         var g=function(k){return tbl[k]!=null?(cells[tbl[k]]||''):'';};
-        var row={name:g('name'),sets:g('sets'),reps:g('reps'),sr:g('sr'),wt:g('wt'),rest:g('rest'),cue:g('cue')};
+        var row={lab:(/^[A-Za-z]\d{0,2}$/.test(g('lab'))?g('lab').toUpperCase():''),name:g('name'),sets:g('sets'),reps:g('reps'),sr:g('sr'),wt:g('wt'),rest:g('rest'),cue:g('cue')};
         if(!row.name||/^\d+$/.test(row.name)&&cells.length>1){var alt=cells.filter(function(x){return x&&!/^\d+$/.test(x);})[0];row.name=alt||row.name;}
         day.blocks[day.blocks.length-1].rows.push(row);lastWasRow=true;return;
       }
@@ -2737,6 +2738,25 @@ function makePDF(){
   function txt(s,x,yy,sz,bold,c,opt){doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(sz);setC(c||INK);doc.text(String(s),x,yy,opt||{});}
   function wrap(s,w,sz,bold){doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(sz);return doc.splitTextToSize(String(s),w);}
 
+  var fldN=0;
+  function fld(x,yy,w,h,sz,multi){
+    var AF=window.jspdf&&window.jspdf.AcroForm;
+    drawC([205,205,215]);doc.setLineWidth(0.2);
+    doc.rect(x,yy,w,h,'D');
+    if(!AF||!AF.TextField)return;
+    try{
+      var f=new AF.TextField();
+      f.fieldName='f'+(++fldN);
+      f.Rect=[x,yy,w,h];
+      f.fontSize=sz||8;
+      f.fontName='helvetica';
+      f.textAlign='center';
+      if(multi)f.multiline=true;
+      f.color='#181822';
+      doc.addField(f);
+    }catch(e){}
+  }
+
   function newPage(){
     doc.addPage();pg++;box(0,0,W,3,RED);y=14;
     if(cont){txt(cont,ML,y,6.5,true,SOFT);y+=6;}
@@ -2744,85 +2764,144 @@ function makePDF(){
   function ensure(h){if(y+h>BOT)newPage();}
 
   // first page already exists
-  pg=1;box(0,0,W,6,RED);
+  pg=1;
 
   // ---------- COVER ----------
-  txt('Maxwell',ML,28,30,true,RED);
-  doc.setFont('helvetica','bold');doc.setFontSize(30);
-  txt('Training',ML+doc.getTextWidth('Maxwell ')+0.5,28,30,true,INK);
-  txt('PERSONALIZED TRAINING PROGRAM',ML,35,7,true,SOFT);
-  box(ML,40,22,1.2,RED);
+  var weeksN=parseInt(String(AA.duration||'').replace(/[^\d]/g,''))||0;
+  var goalsTxt=(Array.isArray(AA.goals)?AA.goals:[]).map(clean).filter(Boolean).join(', ');
+  var equipTxt=clean(AA.gym||'');
+  var sportTxt=(AA.playsport==='yes'&&AA.sport)?clean(AA.sport)+(AA.position?' - '+clean(AA.position):''):'';
+  var lvlTxt=lvl?lvl.charAt(0).toUpperCase()+lvl.slice(1):'';
 
-  txt('PROGRAM BUILT FOR',ML,54,7,true,MID);
-  txt(nm.toUpperCase().substring(0,28),ML,65,24,true,INK);
-  var meta=[];
-  if(lvl)meta.push(lvl.charAt(0).toUpperCase()+lvl.slice(1));
-  if(days)meta.push(days+' days / week');
-  if(hrs)meta.push(hrs+' min sessions');
-  if(AA.playsport==='yes'&&AA.sport)meta.push(clean(AA.sport)+(AA.position?' - '+clean(AA.position):''));
-  if(meta.length)txt(meta.join('   |   '),ML,73,8.5,false,MID);
-  y=84;
+  box(0,0,W,168,INK);box(0,168,W,2,RED);
+  txt('Maxwell',ML,26,13,true,RED);
+  doc.setFont('helvetica','bold');doc.setFontSize(13);
+  txt('Training',ML+doc.getTextWidth('Maxwell ')+0.4,26,13,true,[255,255,255]);
+  txt('maxwelltraining.org',W-ML,26,7.5,false,[170,170,185],{align:'right'});
+  box(ML,31,182,0.3,[70,70,86]);
+
+  txt(weeksN?(weeksN+'-WEEK'):'PERSONALIZED',ML,82,38,true,[255,255,255]);
+  txt('TRAINING PROGRAM',ML,98,24,true,RED);
+  box(ML,106,22,1.2,RED);
+  txt('PREPARED FOR',ML,128,7,true,[150,150,168]);
+  txt(nm.toUpperCase().substring(0,26),ML,141,24,true,[255,255,255]);
+  var sub=[];if(sportTxt)sub.push(sportTxt);if(goalsTxt)sub.push(goalsTxt);
+  if(sub.length){var sw2=wrap(sub.join('   |   '),CW,8.5,false).slice(0,2);sw2.forEach(function(l,i){txt(l,ML,152+i*5,8.5,false,[190,190,205]);});}
+
+  var stats=[];
+  if(weeksN)stats.push([String(weeksN),'WEEKS']);
+  if(days)stats.push([String(days),'DAYS / WEEK']);
+  if(hrs)stats.push([String(hrs),'MIN / SESSION']);
+  if(lvlTxt)stats.push([lvlTxt.toUpperCase(),'LEVEL']);
+  if(stats.length){
+    var sw=CW/stats.length;
+    stats.forEach(function(s,i){
+      var x=ML+i*sw;
+      txt(s[0],x,198,s[0].length>6?15:26,true,INK);
+      txt(s[1],x,206,6.5,true,MID);
+      if(i>0)box(x-5,188,0.3,22,LINE);
+    });
+  }
+  if(equipTxt){txt('EQUIPMENT',ML,232,6.5,true,RED);txt(equipTxt.substring(0,80),ML,238,9,false,INK);}
+  txt('@Maxwell__Training',ML,280,7.5,false,MID);
+
+  // ---------- OVERVIEW ----------
+  cont='Program Overview (continued)';
+  doc.addPage();pg++;box(0,0,W,3,RED);
+  txt('Program Overview',ML,22,22,true,INK);box(ML,26,22,1.2,RED);y=38;
+  function secTitle(s){ensure(14);txt(s,ML,y,7,true,RED);y+=5;}
 
   if(P.why.length){
-    txt('WHY THIS PROGRAM',ML,y,7,true,RED);y+=5;
-    var wl=wrap(P.why.join(' '),CW,8.5,false).slice(0,6);
-    wl.forEach(function(l){txt(l,ML,y,8.5,false,INK);y+=4.6;});
-    y+=5;
+    secTitle('WHY THIS PROGRAM');
+    wrap(P.why.join(' '),CW,9,false).forEach(function(l){ensure(5);txt(l,ML,y,9,false,INK);y+=4.8;});
+    y+=6;
+  }
+
+  // key facts
+  var splitNames=[];P.sched.forEach(function(r){if(!/^(rest|off)\b/i.test(r[1])&&r[1])splitNames.push(r[1]);});
+  var restN=P.sched.filter(function(r){return /rest|off|recover/i.test(r[1])&&!/active/i.test(r[1]);}).length;
+  var facts=[];
+  if(goalsTxt)facts.push(['Primary goal',goalsTxt]);
+  if(weeksN)facts.push(['Program length',weeksN+' weeks']);
+  if(days)facts.push(['Training frequency',days+' days per week'+(hrs?', about '+hrs+' minutes per session':'')]);
+  if(equipTxt)facts.push(['Equipment',equipTxt]);
+  if(splitNames.length)facts.push(['Training split',splitNames.join('  /  ')]);
+  if(P.sched.length&&restN)facts.push(['Recovery days',restN+' per week']);
+  if(facts.length){
+    secTitle('AT A GLANCE');
+    facts.forEach(function(f,i){
+      var vl=wrap(f[1],CW-46,8.5,false);var h=Math.max(8,vl.length*4.3+3.5);
+      ensure(h);
+      box(ML,y,CW,h,i%2===0?TINT:[255,255,255]);
+      txt(f[0],ML+4,y+5.3,8,true,INK);
+      vl.forEach(function(l,k){txt(l,ML+44,y+5.3+k*4.3,8.5,false,MID);});
+      y+=h;
+    });
+    y+=7;
   }
 
   // nutrition cards
   var mac={};
   P.nutri.forEach(function(s){
-    var m=s.match(/(protein|calories|carbs?|carbohydrates?|fats?)\s*:?\s*(.+)/i);
-    if(m){var k=m[1].toLowerCase().charAt(0);mac[k]=m[2].replace(/\/?\s*(per\s*)?day/i,'').trim();}
+    var m=s.match(/(protein|fats?)\s*:?\s*(.+)/i);
+    if(m){mac[m[1].toLowerCase().charAt(0)]=m[2].replace(/\/?\s*(per\s*)?day/i,'').trim();}
   });
   var calM=P.nutri.join(' | ').match(/calories\s*:?\s*([\d,]+)/i),carbM=P.nutri.join(' | ').match(/carb\w*\s*:?\s*([\d,]+\s*g?)/i);
   var cards=[['PROTEIN',mac.p||''],['CALORIES',calM?calM[1]:''],['CARBS',carbM?carbM[1].replace(/\s/g,''):''],['FATS',mac.f||'']];
   if(cards.some(function(c){return c[1];})){
-    txt('DAILY NUTRITION',ML,y,7,true,RED);y+=4;
+    secTitle('DAILY NUTRITION TARGETS');ensure(22);
     cards.forEach(function(c,i){
       var x=ML+i*46;
-      box(x,y,43,20,TINT);box(x,y,43,1.5,RED);
+      box(x,y,43,19,TINT);box(x,y,43,1.5,RED);
       txt(c[0],x+4,y+7,6,true,MID);
-      txt(c[1]||'-',x+4,y+15,15,true,INK);
+      txt(c[1]||'-',x+4,y+14.5,14,true,INK);
     });
     y+=26;
   }
 
   // weekly schedule
   if(P.sched.length){
-    txt('YOUR WEEK',ML,y,7,true,RED);y+=4;
-    var cw=CW/7,sh=24;
+    secTitle('WEEKLY SCHEDULE');ensure(26);
+    var cw=CW/7,sh=22;
     P.sched.slice(0,7).forEach(function(r,i){
       var x=ML+i*cw,rest=/rest|off|recover/i.test(r[1])&&!/active/i.test(r[1]);
       box(x,y,cw-1,sh,rest?[250,250,252]:TINT);box(x,y,cw-1,1.2,rest?LINE:RED);
       txt(r[0].substring(0,3).toUpperCase(),x+cw/2-0.5,y+6,6.5,true,rest?SOFT:RED,{align:'center'});
-      var ls=wrap(r[1],cw-4,6,false).slice(0,4);
-      ls.forEach(function(l,k){txt(l,x+cw/2-0.5,y+11+k*3.3,6,false,rest?SOFT:INK,{align:'center'});});
+      var ls=wrap(r[1],cw-4,6.2,false).slice(0,4);
+      ls.forEach(function(l,k){txt(l,x+cw/2-0.5,y+11+k*3.3,6.2,false,rest?SOFT:INK,{align:'center'});});
     });
     y+=sh+7;
   }
 
-  // phases overview
+  // program structure
   if(P.phases.length&&totalDays){
-    txt('PROGRAM STRUCTURE',ML,y,7,true,RED);y+=5;
-    P.phases.forEach(function(p){
-      if(y>BOT-6)return;
-      box(ML,y-3.4,2,5,RED);
-      txt(p.name.substring(0,70),ML+5,y,8.5,true,INK);
-      txt(p.days.length+' sessions / week',W-ML,y,7.5,false,MID,{align:'right'});
-      y+=6.5;
+    secTitle('PROGRAM STRUCTURE');
+    P.phases.forEach(function(p,i){
+      ensure(10);
+      var wkp=phaseWeeksEarly(p.name);
+      box(ML,y,CW,9,i%2===0?TINT:[255,255,255]);box(ML,y,2,9,RED);
+      txt(clean(p.name).replace(/\s*\(.*\)\s*$/,'').substring(0,60),ML+6,y+5.8,8.5,true,INK);
+      txt((wkp?(wkp[0]===wkp[1]?'Week '+wkp[0]:'Weeks '+wkp[0]+'-'+wkp[1]):'')+(wkp?'   |   ':'')+p.days.length+(p.days.length===1?' session':' sessions')+' per week',W-ML-3,y+5.8,7.5,false,MID,{align:'right'});
+      y+=9;
     });
-    y+=2;
+    y+=7;
   }
-  if(y<BOT-18){
-    box(ML,y,CW,15,TINT);
-    var how=wrap('How to use it: do the sessions in order, log your weights in the boxes, and add weight only when every rep is clean. Each phase lasts the weeks shown - move to the next phase on schedule.',CW-8,7.5,false);
-    how.slice(0,3).forEach(function(l,i){txt(l,ML+4,y+5.5+i*3.9,7.5,false,MID);});
-  }
+
+  secTitle('HOW TO USE THIS PROGRAM');
+  ['Do the sessions in the order shown. Each session has its own page.',
+   'Exercises that share a letter (A1 and A2) are a superset: do A1, then A2 straight away, rest, and repeat for all sets before moving to the next letter.',
+   'Record the weight you use in the W1 / W2 / W3 boxes next to each exercise. On a computer or tablet you can click a box and type in it, or print the pages and write by hand.',
+   'Follow the weights, sets, reps and rest listed. See Coaching Notes for progression and deload guidance.'
+  ].forEach(function(s){
+    var ls=wrap(s,CW-8,8.5,false);ensure(ls.length*4.6+2);
+    box(ML,y-2.8,1.6,1.6,RED);
+    ls.forEach(function(l,k){txt(l,ML+5,y+k*4.5,8.5,false,INK);});
+    y+=ls.length*4.5+2;
+  });
 
   // ---------- DAY PAGES ----------
   var NW=76,SW=24,WW=26,RW=16,LW=CW-8-NW-SW-WW-RW; // log width
+  function phaseWeeksEarly(name){return phaseWeeks(name);}
   function phaseWeeks(name){
     var m=String(name).match(/weeks?\s*(\d+)\s*(?:-|to)\s*(\d+)/i);
     return m?[parseInt(m[1]),parseInt(m[2])]:null;
@@ -2879,19 +2958,31 @@ function makePDF(){
     d.blocks.forEach(function(b){
       if(!b.rows.length)return;
       if(b.label&&!/^main work$/i.test(b.label)){ensure(20);txt(b.label.toUpperCase().substring(0,70),ML,y+3,7,true,acc);y+=6;}
+      var grp={};b.rows.forEach(function(r){if(r.lab)grp[r.lab.charAt(0)]=(grp[r.lab.charAt(0)]||0)+1;});
+      var pairKeys=Object.keys(grp).filter(function(k){return grp[k]>1;});
+      if(pairKeys.length){
+        var pk=pairKeys[0];var lg='Matching letters are a superset ('+pk+'1 + '+pk+'2): do '+pk+'1, then '+pk+'2 straight away, rest, and repeat for all sets before moving to the next letter.';
+        wrap(lg,CW,7,false).forEach(function(l){ensure(6);txt(l,ML,y+2,7,false,MID);y+=3.8;});
+        y+=2;
+      }
       ensure(22);tableHeader(wk);
+      var gIdx=-1,prevKey=null;
       b.rows.forEach(function(r,ri){
+        var gk=r.lab?r.lab.charAt(0):('#'+ri);
+        var newGroup=(gk!==prevKey);if(newGroup)gIdx++;prevKey=gk;
         var sr=(r.sets&&r.reps)?(r.sets+' x '+r.reps):(r.sr||r.sets||r.reps||'-');
         var wt=r.wt||'';var wn=wt.match(/^(\d+(?:\.\d+)?)\s*(lbs?|kg)?$/i);
         if(wn&&(!wn[2]||/lb/i.test(wn[2])))wt=r5(parseFloat(wn[1]))+' lbs';
-        var nl=wrap(r.name,NW-4,8.5,true).slice(0,2);
-        var cl=r.cue?wrap(r.cue,NW-4,6.8,false).slice(0,5):[];
+        var nl=wrap(r.name,NW-4,8.5,true).slice(0,3);
+        var cl=r.cue?wrap(r.cue,NW-4,6.8,false):[];
         var rh=Math.max(13,4+nl.length*4+cl.length*3.3+3);
         if(y+rh>BOT){newPage();tableHeader(wk);}
-        box(ML,y,CW,rh,ri%2===0?[255,255,255]:TINT);
-        drawC(LINE);doc.setLineWidth(0.15);doc.line(ML,y+rh,ML+CW,y+rh);
+        box(ML,y,CW,rh,gIdx%2===0?[255,255,255]:TINT);
+        var nextLab=b.rows[ri+1]?(b.rows[ri+1].lab?b.rows[ri+1].lab.charAt(0):('#'+(ri+1))):null;
+        var endGroup=(nextLab!==gk);
+        drawC(endGroup?[170,170,185]:LINE);doc.setLineWidth(endGroup?0.35:0.15);doc.line(ML,y+rh,ML+CW,y+rh);
         box(ML,y,8,rh,acc);
-        n++;txt(String(n),ML+4,y+rh/2+1.5,8.5,true,[255,255,255],{align:'center'});
+        n++;txt(r.lab||String(n),ML+4,y+rh/2+1.5,r.lab&&r.lab.length>2?7:8.5,true,[255,255,255],{align:'center'});
         var x=ML+8;
         nl.forEach(function(l,i){txt(l,x+2,y+5+i*4,8.5,true,INK);});
         cl.forEach(function(l,i){txt(l,x+2,y+5+nl.length*4+i*3.3,6.8,false,MID);});
@@ -2905,8 +2996,7 @@ function makePDF(){
         var rl=wrap(r.rest||'-',RW-1,7,false).slice(0,2);
         rl.forEach(function(l,i){txt(l,x+RW/2,y+rh/2+1.2-(rl.length-1)*2+i*3.4,7,false,MID,{align:'center'});});
         x+=RW;
-        drawC([205,205,215]);doc.setLineWidth(0.2);
-        for(var i=0;i<3;i++){doc.rect(x+(LW/3)*i+1,y+rh/2-3,LW/3-2,6,'D');}
+        for(var i=0;i<3;i++){fld(x+(LW/3)*i+1,y+rh/2-3,LW/3-2,6,7.5);}
         y+=rh;
       });
       y+=5;
@@ -2937,31 +3027,52 @@ function makePDF(){
 
   // ---------- COACHING NOTES ----------
   var notes=P.notes.slice();
-  if(!notes.length){
-    notes=[
-      {t:'Add weight gradually',b:'Hit all reps with good form before adding load. Miss reps - stay at the same weight one more week.'},
-      {t:'Deload',b:'Every 4th week, drop weights about 40% and cut a set. This is when your body adapts.'},
-      {t:'Sleep',b:'7-9 hours a night. Progress is built during recovery.'},
-      {t:'Missed session',b:'Do not double up. Continue where you left off. Two missed in a row - reduce weights 10% next session.'}
-    ];
+  if(notes.length){
+    cont='Coaching Notes (continued)';
+    doc.addPage();pg++;box(0,0,W,3,RED);
+    txt('Coaching Notes',ML,22,22,true,INK);box(ML,26,22,1.2,RED);y=38;
+    notes.forEach(function(nt){
+      var bl=wrap(nt.b,CW-12,8.5,false);var h=(nt.t?10:6)+bl.length*4.4+2;
+      ensure(h+4);
+      box(ML,y,CW,h,TINT);box(ML,y,2.2,h,RED);
+      var yy=y+6;
+      if(nt.t){txt(nt.t,ML+6,yy,9,true,INK);yy+=5.2;}
+      bl.forEach(function(l){txt(l,ML+6,yy,8.5,false,MID);yy+=4.4;});
+      y+=h+4;
+    });
   }
-  cont='Coaching Notes (continued)';
+
+  // ---------- PROGRESS TRACKING ----------
+  cont='Progress Tracking (continued)';
   doc.addPage();pg++;box(0,0,W,3,RED);
-  txt('Coaching Notes',ML,22,22,true,INK);box(ML,26,22,1.2,RED);y=38;
-  notes.forEach(function(nt){
-    var bl=wrap(nt.b,CW-12,8,false);var h=(nt.t?9:5)+bl.length*4.2+3;
-    ensure(h+4);
-    box(ML,y,CW,h,TINT);box(ML,y,2.2,h,RED);
-    var yy=y+5;
-    if(nt.t){txt(nt.t,ML+6,yy,8.5,true,INK);yy+=5;}
-    bl.forEach(function(l){txt(l,ML+6,yy,8,false,MID);yy+=4.2;});
-    y+=h+4;
-  });
-  ensure(34);y+=4;
-  box(ML,y,CW,22,INK);
-  txt('Maxwell Ionita  -  Maxwell Training',ML+CW/2,y+10,11,true,[255,255,255],{align:'center'});
-  txt('@Maxwell__Training   |   maxwelltraining.org',ML+CW/2,y+16.5,7.5,false,[200,200,212],{align:'center'});
-  y+=28;
+  txt('Progress Tracking',ML,22,22,true,INK);box(ML,26,22,1.2,RED);y=38;
+  function gridTable(title,cols,rows,rh){
+    ensure(14+7+rh*2);txt(title,ML,y,7,true,RED);y+=4;
+    var tw=cols.reduce(function(a,c){return a+c[1];},0);
+    box(ML,y,tw,7,INK);var x=ML;
+    cols.forEach(function(c){txt(c[0],x+3,y+4.7,6,true,[255,255,255]);x+=c[1];});
+    y+=7;
+    for(var r=0;r<rows;r++){
+      ensure(rh);
+      box(ML,y,tw,rh,r%2===0?[255,255,255]:TINT);
+      drawC(LINE);doc.setLineWidth(0.15);doc.line(ML,y+rh,ML+tw,y+rh);
+      x=ML;cols.forEach(function(c,ci){if(ci>0){doc.line(x,y,x,y+rh);}fld(x+0.8,y+0.8,c[1]-1.6,rh-1.6,8);x+=c[1];});
+      y+=rh;
+    }
+    y+=9;
+  }
+  gridTable('PERSONAL RECORDS',[['EXERCISE',74],['STARTING',36],['BEST',36],['DATE',36]],8,9);
+  gridTable('BODY MEASUREMENTS',[['DATE',40],['BODYWEIGHT',46],['NOTES',96]],5,9);
+  ensure(14+4*9);
+  txt('PERFORMANCE NOTES',ML,y,7,true,RED);y+=4;
+  drawC(LINE);doc.setLineWidth(0.2);
+  for(var li=0;li<4&&y<BOT-4;li++){y+=9;doc.line(ML,y,ML+CW,y);}
+  y+=8;
+  ensure(30);
+  box(ML,y,CW,20,INK);
+  txt('Maxwell Ionita  -  Maxwell Training',ML+CW/2,y+9,11,true,[255,255,255],{align:'center'});
+  txt('@Maxwell__Training   |   maxwelltraining.org',ML+CW/2,y+15,7.5,false,[200,200,212],{align:'center'});
+  y+=26;
   var disc=P.disclaimer||'DISCLAIMER: Educational fitness guidance only. Not medical advice. Stop any exercise that causes pain. Consult a healthcare professional if injured.';
   var dl=wrap(disc,CW,6.5,false);ensure(dl.length*3.4+2);
   dl.forEach(function(l){txt(l,ML,y,6.5,false,SOFT);y+=3.4;});
@@ -3036,7 +3147,7 @@ var QUIZ = [
    if(!w||w<50||w>500){ err('q-wt'); return 'Enter a valid weight'; }
  }},
  {key:'styles', title:'How do you like to train?', sub:'Select all that apply.', type:'multi',
-  opts:[['🏋️','Strength','Heavy. Low reps.'],['💪','Hypertrophy','Build muscle.'],['⚡','Athletic / Power','Explosive.'],['🏃','Endurance','Circuits.'],['🤸','Calisthenics','Bodyweight skills.'],['🔁','Hybrid','Strength + size.'],['🥋','Old-School Soviet','High-volume, kettlebells, grit.'],['🔒','Prison Style','Bodyweight only, brutal volume.']],
+  opts:[['🏋️','Strength','Heavy. Low reps.'],['💪','Hypertrophy','Build muscle.'],['⚡','Athletic / Power','Explosive.'],['🏃','Endurance','Circuits.'],['🤸','Calisthenics','Bodyweight skills.'],['🔁','Hybrid','Strength + size.'],['🥋','Old-School Soviet','High-volume, kettlebells, grit.'],['🐊','GOATA Training','Crawling, mobility, movement-first.'],['🔒','Prison Style','Bodyweight only, brutal volume.']],
   req:'Select at least one style', after:function(){A.style=A.styles.join(' + ');}},
  {title:'Do you play a sport?', type:'custom', render:function(){
    return '<div class="opt-grid" id="g-sport"></div>'+
