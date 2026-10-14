@@ -2302,7 +2302,12 @@ window.chkQ6 = function() {
 
 // ── Plan generation — calls backend ─────────────────────────────────
 window.genPlan = async function() {
-  if (generating) return;
+  if (window.__genCtl) { try { window.__genCtl.abort(); } catch(e) {} }
+  const __ctl = window.AbortController ? new AbortController() : null; window.__genCtl = __ctl;
+  const __myId = (window.__genId = (window.__genId || 0) + 1);
+  if (window.__genTimer) clearInterval(window.__genTimer);
+  document.querySelectorAll('.load-step').forEach(s => s.classList.remove('active','done'));
+  { const ex = document.getElementById('pl-err'); if (ex) ex.remove(); const pb = document.getElementById('pl-body'); if (pb) Array.from(pb.children).forEach(c => { c.style.display = ''; }); }
   generating = true;
 
   // Read final quiz answers
@@ -2326,14 +2331,17 @@ window.genPlan = async function() {
     stepIdx++;
     if (stepIdx >= steps.length) clearInterval(stepTimer);
   }, 7000);
+  window.__genTimer = stepTimer;
 
   try {
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...A, tier: window.tier, style: (A.styles||[]).join(' + ') || A.style }),
+      signal: __ctl ? __ctl.signal : undefined,
     });
 
+    if (__myId !== window.__genId) return;
     clearInterval(stepTimer);
 
     if (!res.ok) {
@@ -2342,6 +2350,7 @@ window.genPlan = async function() {
     }
 
     const data = await res.json();
+    if (__myId !== window.__genId) return;
     const text = data.plan || data.teaser || '';
     if (!text || text.length < 100) throw new Error('Could not generate your program. Please try again.');
     genPlanText = text; window.genPlanText = text;
@@ -2350,19 +2359,22 @@ window.genPlan = async function() {
     var plTitle=document.querySelector('.plan-page h2'); if(plTitle) plTitle.textContent='Your program, '+(A.fname||'Athlete');
 
   } catch (err) {
+    if (__myId !== window.__genId) return;
     clearInterval(stepTimer);
     document.getElementById('pl-load').hidden = true;
     const body = document.getElementById('pl-body');
     if (body) {
       body.hidden = false;
-      body.innerHTML = `<div style="text-align:center;padding:60px 20px">
-        <p style="color:var(--mid);margin-bottom:20px">${escText(err.message)}</p>
-        <button class="hero-btn" onclick="showPg('home')">← Back to home</button>
-      </div>`;
+      Array.from(body.children).forEach(c => { c.style.display = 'none'; });
+      const box = document.createElement('div'); box.id = 'pl-err';
+      box.style.cssText = 'text-align:center;padding:60px 20px';
+      box.innerHTML = `<p style="color:var(--mid);margin-bottom:20px">${escText(err.message)}</p>
+        <button class="hero-btn" onclick="genPlan()">Try again</button>`;
+      body.appendChild(box);
     }
     announce(err.message);
   } finally {
-    generating = false;
+    if (__myId === window.__genId) generating = false;
   }
 };
 
