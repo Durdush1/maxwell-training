@@ -1709,6 +1709,7 @@ input[type="range"] { width: 100%; accent-color: var(--red); height: 6px; cursor
       <div class="plan-loading">
         <div class="plan-spinner" role="status" aria-label="Loading"></div>
         <div class="plan-loading-text">Writing your program...</div>
+        <div class="plan-loading-sub" style="font-size:0.85rem;color:var(--mid);margin:6px 0 14px">This usually takes under a minute. Keep this page open.</div>
         <div class="plan-loading-steps" aria-label="Generation progress">
           <div class="load-step" id="ls1">Analysing your goals...</div>
           <div class="load-step" id="ls2">Reading your equipment...</div>
@@ -2324,7 +2325,7 @@ window.genPlan = async function() {
     });
     stepIdx++;
     if (stepIdx >= steps.length) clearInterval(stepTimer);
-  }, 1800);
+  }, 7000);
 
   try {
     const res = await fetch('/api/generate', {
@@ -2379,7 +2380,7 @@ function showPlanContent(text, isTeaser) {
   const out = document.getElementById('pl-out');
   if (out) {
     // Use mdToHtml which escapes before inserting
-    out.innerHTML = mdToHtml(text);
+    out.innerHTML = (window.planPreviewHtml ? window.planPreviewHtml(text) : mdToHtml(text));
     if (isTeaser) {
       // Add blur overlay
       const wrap = out.closest('.plan-blur-wrap') || out;
@@ -3264,5 +3265,140 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 </script>
 
+<script>
+/* ---- Plan preview: short summary + collapsible phases/days ---- */
+(function(){
+  var css=document.createElement('style');
+  css.textContent='.pv-phase{border:1px solid rgba(127,127,127,.28);border-radius:12px;margin:16px 0;padding:0 16px;background:rgba(127,127,127,.04)}'+
+  '.pv-phase>summary{cursor:pointer;list-style:none;padding:16px 0;font-weight:700;font-size:1.02rem;display:flex;justify-content:space-between;gap:12px}'+
+  '.pv-phase>summary span{font-weight:500;color:var(--mid);font-size:.85rem}'+
+  '.pv-day{border-top:1px solid rgba(127,127,127,.22)}'+
+  '.pv-day>summary{cursor:pointer;list-style:none;padding:12px 0;font-weight:600}'+
+  '.pv-phase>summary::-webkit-details-marker,.pv-day>summary::-webkit-details-marker{display:none}'+
+  '.pv-phase>summary:after,.pv-day>summary:after{content:"+";color:var(--mid);font-weight:400}'+
+  '.pv-phase[open]>summary:after,.pv-day[open]>summary:after{content:"−"}'+
+  '.pv-day>div{padding-bottom:12px}';
+  document.head.appendChild(css);
+  function strip(s){return String(s||'').replace(/\*\*/g,'').replace(/^#+\s*/,'').trim();}
+  window.planPreviewHtml=function(text){
+    var chunks=String(text||'').split(/\n(?=## )/);var html='',pc=0;
+    chunks.forEach(function(ch){
+      var lines=ch.split('\n');var first=lines[0];var rest=lines.slice(1).join('\n');
+      if(/^##\s.*why/i.test(first)){
+        var b=rest.replace(/\s+/g,' ').trim();var s=b.match(/[^.!?]+[.!?]+/g)||[b];
+        html+=mdToHtml(first+'\n'+s.slice(0,2).join(' ').trim());return;
+      }
+      if(/^##\s.*phase/i.test(first)){
+        pc++;var parts=ch.split(/\n(?=### )/);var head=parts.shift();var hl=head.split('\n');
+        var inner=parts.map(function(d,i){var dl=d.split('\n');
+          return '<details class="pv-day"'+(pc===1&&i===0?' open':'')+'><summary>'+escText(strip(dl[0]))+'</summary><div>'+mdToHtml(dl.slice(1).join('\n'))+'</div></details>';}).join('');
+        html+='<details class="pv-phase"'+(pc===1?' open':'')+'><summary>'+escText(strip(hl[0]))+'<span>'+parts.length+' sessions</span></summary>'+(hl.slice(1).join('').trim()?mdToHtml(hl.slice(1).join('\n')):'')+inner+'</details>';
+        return;
+      }
+      if(/^##\s.*coaching/i.test(first)){html+='<details class="pv-phase"><summary>Coaching notes</summary><div>'+mdToHtml(rest)+'</div></details>';return;}
+      html+=mdToHtml(ch);
+    });
+    return html.replace(/(<\/h[234]>|<\/li>|<ul>|<\/ul>|<\/table><\/div>)(<br>)+/g,'$1').replace(/(<br>)+(<ul>|<li>|<div style)/g,'$2').replace(/<p>(\s|<br>)*<\/p>/g,'');
+  };
+})();
+
+/* ---- Real-site navigation: refresh and back button keep your place ---- */
+(function(){
+  var KEY='mt_state',fromPop=false,booting=true,initHash=location.hash;
+  function st(){try{return JSON.parse(sessionStorage.getItem(KEY)||'{}');}catch(e){return {};}}
+  function save(o){try{var s=st();for(var k in o)s[k]=o[k];sessionStorage.setItem(KEY,JSON.stringify(s));}catch(e){}}
+  function saveA(){try{sessionStorage.setItem('mt_A',JSON.stringify(window.A||{}));}catch(e){}}
+  var oShow=window.showPg;
+  window.showPg=function(id){
+    oShow(id);
+    if(!fromPop&&!booting){var h=id==='home'?'':'#'+id;if(location.hash!==h){try{history.pushState({pg:id},'',location.pathname+h);}catch(e){}}}
+    save({page:id});
+  };
+  var oGo=window.goQ;
+  window.goQ=function(n){oGo(n);try{save({qi:qi});}catch(e){}saveA();};
+  var oGen=window.genPlan;
+  if(oGen)window.genPlan=function(){saveA();return oGen.apply(this,arguments);};
+  function hasPlan(){try{var p=sessionStorage.getItem('mt_plan')||'';return p.length>100?p:'';}catch(e){return '';}}
+  function openPlan(p){
+    window.genPlanText=p;try{genPlanText=p;}catch(e){}
+    showPg('plan');showPlanContent(p,false);
+    var t=document.querySelector('.plan-page h2');if(t)t.textContent='Your program, '+((window.A&&A.fname)||'Athlete');
+  }
+  function go(h){
+    fromPop=true;
+    try{
+      if(h==='quiz'){showPg('quiz');goQ(st().qi||0);}
+      else if(h==='plan'){var p=hasPlan();if(p)openPlan(p);else{showPg('quiz');goQ(st().qi||0);}}
+      else showPg('home');
+    }finally{fromPop=false;}
+  }
+  document.addEventListener('DOMContentLoaded',function(){
+    booting=false;
+    if(/[?&](success|planId)=/.test(location.search))return;
+    var h=initHash.replace('#','');if(!h)return;
+    try{history.replaceState({pg:h},'',location.pathname+initHash);}catch(e){}
+    try{var a=JSON.parse(sessionStorage.getItem('mt_A')||'null');if(a&&window.A){for(var k in a)A[k]=a[k];if(a.level)window.tier=a.level;}}catch(e){}
+    go(h);
+  });
+  window.addEventListener('popstate',function(){go(location.hash.replace('#','')||'home');});
+})();
+</script>
+<script>
+/* ---- Motion + interactivity layer ---- */
+(function(){
+  var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var css=document.createElement('style');
+  css.textContent=
+  '#mt-progress{position:fixed;top:0;left:0;height:3px;width:0;background:var(--red);z-index:9999;transition:width .1s linear}'+
+  'nav.mt-scrolled{box-shadow:0 6px 24px rgba(0,0,0,.08);backdrop-filter:blur(8px)}'+
+  '.mt-rv{opacity:0;transform:translateY(28px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.7,.2,1)}'+
+  '.mt-rv.mt-in{opacity:1;transform:none}'+
+  '.three-item,.plan,.sample-card,.transform-card,.faq-item,.badge{transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease}'+
+  '.three-item:hover,.plan:hover,.sample-card:hover,.transform-card:hover{transform:translateY(-6px);box-shadow:0 18px 40px rgba(0,0,0,.10)}'+
+  '.faq-item:hover{transform:translateX(4px)}'+
+  '.badge:hover{transform:scale(1.06)}'+
+  '.hero-btn,.nav-btn,.plan-btn,.q-next,.btn{transition:transform .2s ease,box-shadow .2s ease}'+
+  '.hero-btn:hover,.nav-btn:hover,.plan-btn:hover,.q-next:hover,.btn:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(230,57,70,.28)}'+
+  '.hero-btn:active,.plan-btn:active,.q-next:active,.btn:active{transform:scale(.97)}'+
+  '.hero-btn svg{transition:transform .2s ease}.hero-btn:hover svg{transform:translateX(4px)}'+
+  '.opt-grid>*{transition:transform .18s ease,box-shadow .18s ease}.opt-grid>*:hover{transform:translateY(-3px)}.opt-grid>*:active{transform:scale(.96)}'+
+  '.hero-photo-col img{transition:transform 1.6s cubic-bezier(.2,.7,.2,1)}'+
+  '.mt-boot .hero-photo-col img{transform:scale(1.08)}'+
+  '.mt-boot .hero-text-col>*{opacity:0;transform:translateY(22px)}'+
+  '.hero-text-col>*{transition:opacity .8s ease,transform .8s cubic-bezier(.2,.7,.2,1)}'+
+  '.three-num{display:inline-block;transition:transform .3s ease,color .3s ease}.three-item:hover .three-num{transform:scale(1.15);color:var(--red)}'+
+  '.q-step{animation:mtStep .35s ease}@keyframes mtStep{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}'+
+  '.plan-spinner{animation-duration:.9s}';
+  if(reduce)css.textContent='#mt-progress{position:fixed;top:0;left:0;height:3px;width:0;background:var(--red);z-index:9999}';
+  document.head.appendChild(css);
+  var bar=document.createElement('div');bar.id='mt-progress';document.body.appendChild(bar);
+  var nav=document.querySelector('nav');
+  function onScroll(){
+    var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;
+    bar.style.width=(max>0?(h.scrollTop/max*100):0)+'%';
+    if(nav)nav.classList.toggle('mt-scrolled',h.scrollTop>10);
+  }
+  window.addEventListener('scroll',onScroll,{passive:true});onScroll();
+  if(reduce||!('IntersectionObserver' in window))return;
+  document.documentElement.classList.add('mt-boot');
+  window.addEventListener('load',function(){
+    var kids=document.querySelectorAll('.hero-text-col>*');
+    kids.forEach(function(el,i){el.style.transitionDelay=(i*0.09)+'s';});
+    requestAnimationFrame(function(){document.documentElement.classList.remove('mt-boot');});
+    setTimeout(function(){kids.forEach(function(el){el.style.transitionDelay='';});},1500);
+  });
+  var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('mt-in');io.unobserve(e.target);}});},{threshold:0.12,rootMargin:'0px 0px -40px 0px'});
+  var sel='#home section:not(.hero) h2, #home section:not(.hero) .section-sub, .three-item, .plan, .sample-card, .transform-card, .faq-item, .about > *, .guarantee-section > *, .how-section li, .get li';
+  document.addEventListener('DOMContentLoaded',function(){
+    var groups={};
+    document.querySelectorAll(sel).forEach(function(el){
+      el.classList.add('mt-rv');
+      var p=el.parentElement;var k=p?Array.prototype.indexOf.call(p.children,el):0;
+      el.style.transitionDelay=Math.min(k,5)*0.08+'s';
+      io.observe(el);
+    });
+  });
+})();
+</script>
 </body>
 </html>
