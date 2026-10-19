@@ -2117,7 +2117,7 @@ window.sendMsg = function() {
     if(btn){btn.disabled=false;btn.textContent='Send message';}
   };
   if(!window.emailjs){ fallback(); return false; }
-  emailjs.send('service_n5840dn',(window.MT_CONTACT_TEMPLATE||'template_qp1lxh9'),{name:'New website message from '+n,email:'Maxwell.ionita@gmail.com',to_email:'Maxwell.ionita@gmail.com',message:'From: '+n+' <'+e+'>\n\n'+m,from_name:n,from_email:e,reply_to:e})
+  emailjs.send('service_n5840dn','template_dekvpo2',{name:n,email:e,message:m+'\n\nReply to: '+e,from_name:n,from_email:e,reply_to:e})
     .then(function(){ closeModal(); toast('Message sent! I\'ll reply within 24 hours.'); document.getElementById('ct-n').value='';document.getElementById('ct-e').value='';document.getElementById('ct-m').value=''; if(btn){btn.disabled=false;btn.textContent='Send message';} })
     .catch(function(err){ console.error('EmailJS', err); fallback(); });
   return false;
