@@ -2473,41 +2473,20 @@ window.quickAdj = function(el, topic) {
   }
 };
 
-window.doAdj = async function() {
-  if (generating || !currentPlanId) return;
+window.doAdj = function() {
   const inp = document.getElementById('adj-inp');
-  const val = inp?.value.trim();
-  if (!val) return;
-
-  generating = true;
-  const btn = document.getElementById('adj-submit');
-  if (btn) { btn.disabled = true; btn.textContent = 'Updating...'; }
-
-  // Build modified request
-  const modified = { ...A, tier };
-  if (adjSel === 'Duration') modified.duration = val;
-  else modified.note = `${A.note} User adjustment: change ${adjSel} — ${val}`.slice(0, 400);
-
-  try {
-    const res = await fetch('/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(modified),
-    });
-    if (!res.ok) throw new Error('Could not update program');
-    const data = await res.json();
-    currentPlanId = data.planId;
-    window.currentPlanId = currentPlanId;
-    genPlanText = data.teaser;
-    showPlanContent(data.teaser, true);
-    announce('Program updated');
-  } catch (err) {
-    announce(err.message);
-  } finally {
-    generating = false;
-    if (btn) { btn.disabled = false; btn.textContent = 'Update'; }
-    if (inp) inp.value = '';
+  const val = (inp && inp.value || '').trim();
+  if (!val) { announce('Type what you want to change'); if (inp) inp.focus(); return; }
+  if (adjSel === 'Duration') {
+    const m = val.match(/(4|8|12|16)/);
+    if (m) A.duration = m[1] + 'weeks';
   }
+  A.adjust = ((A.adjust ? A.adjust + ' | ' : '') + (adjSel ? adjSel + ': ' : '') + val).slice(-400);
+  if (inp) inp.value = '';
+  document.querySelectorAll('.adj-chip').forEach(c => c.classList.remove('sel'));
+  adjSel = '';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  genPlan();
 };
 
 </script>
