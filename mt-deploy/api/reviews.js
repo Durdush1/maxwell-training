@@ -1,11 +1,9 @@
+// Reviews are delivered to the owner through the existing EmailJS contact template.
+// No public review is displayed before the owner has approved it.
 module.exports = async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
   if (req.method === 'GET') return res.status(200).json({ reviews: [] });
-  if (req.method === 'POST') {
-    const b = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
-    const text = String(b.text || '').slice(0, 1000);
-    if (!text) return res.status(400).json({ error: 'Review text required' });
-    console.log('REVIEW', JSON.stringify({ name: String(b.name || '').slice(0, 60), rating: Number(b.rating) || 0, text }));
-    return res.status(200).json({ ok: true });
-  }
+  if (req.method === 'POST') return res.status(503).json({ error: 'Please use the review form on the website to send your review.' });
+  res.setHeader('Allow', 'GET');
   return res.status(405).json({ error: 'Method not allowed' });
 };
