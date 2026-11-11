@@ -2362,6 +2362,7 @@ window.genPlan = async function() {
     if (__myId !== window.__genId) return;
     clearInterval(stepTimer);
 
+    if (res.status === 429) throw new Error('You have reached the program preview limit. Please wait up to 10 minutes before trying again. People on the same Wi-Fi share this limit.');
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || 'Generation failed');

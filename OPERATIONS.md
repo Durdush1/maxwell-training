@@ -32,7 +32,7 @@ Run `node --test mt-deploy/tests/reliability.test.cjs` from the repository root.
 - Vercel Hobby is restricted to non-commercial personal use: https://vercel.com/docs/plans/hobby . Choose compliant hosting before commercial operation; no plan was upgraded.
 - Add durable, private order/program storage and authenticated recovery, with retention and deletion behavior.
 - Add Stripe webhook signature verification, idempotent fulfillment, program-to-order binding, and customer email delivery with retries.
-- Add distributed request throttling and a bot challenge before paid generation. Origin validation is not a rate limiter or authentication.
+- Vercel WAF rate limiting is active for /api/generate: 5 requests per IP per 600 seconds, returning 429. Counters are per-region and shared networks share the limit. Add a bot challenge and order-based limits for stronger protection; origin validation is not authentication.
 - Verify domain email authentication, destination delivery, and quota handling; the current sender is a Gmail-backed EmailJS service.
 - Confirm permission and accuracy for existing transformation photos and claims; this work did not establish their provenance.
 - Obtain qualified review of generated exercise/nutrition content, especially for minors and injury-related answers. This pass did not validate clinical or coaching quality.
