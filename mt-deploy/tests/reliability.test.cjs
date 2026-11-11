@@ -50,3 +50,23 @@ test('checkout retry survives reload and missing programs never show a download'
  assert.equal(elements['conf-dl-btn'].hidden,false);
  assert.match(elements['conf-status'].textContent,/ready to download/);
 });
+
+test('exhausted credits pause the affected purchase flow without retry or provider-detail leakage', async()=>{
+ const {EventEmitter}=require('node:events');
+ for(const [status,type,message] of [[402,'billing_error','Private billing detail'],[400,'invalid_request_error','Your credit balance is too low to access the Anthropic API.'],[400,'invalid_request_error','Organization spend limit reached']]) {
+  let calls=0;
+  const mockHttps={request(options,callback){calls++;const request=new EventEmitter();request.write=()=>{};request.destroy=()=>{};request.end=()=>{const response=new EventEmitter();response.statusCode=status;callback(response);queueMicrotask(()=>{response.emit('data',JSON.stringify({error:{type,message}}));response.emit('end');});};return request;}};
+  const context={module:{exports:{}},require:name=>{assert.equal(name,'https');return mockHttps;},process:{env:{ANTHROPIC_API_KEY:'test-only'}},Buffer,setTimeout,clearTimeout,console:{error(){}}};
+  vm.createContext(context);vm.runInContext(fs.readFileSync(__dirname+'/../api/generate.js','utf8'),context);
+  const res=response();await context.module.exports({method:'POST',body:{...profile},headers:{}},res);
+  assert.equal(res.code,503);assert.equal(res.body.code,'SALES_PAUSED');assert.equal(calls,1);assert.ok(!JSON.stringify(res.body).includes(message));
+ }
+});
+
+test('a billing-paused browser cannot redirect to checkout after refresh',async()=>{
+ const html=fs.readFileSync(__dirname+'/../index.html','utf8');
+ const code=html.slice(html.indexOf('window.doCheckout = async function()'),html.indexOf('window.dlPDF = async function()'));
+ let notice='';const context={window:{location:{href:'unchanged'}},sessionStorage:{getItem:()=> '1'},toast:message=>{notice=message}};
+ vm.createContext(context);vm.runInContext(code,context);await context.window.doCheckout();
+ assert.equal(context.window.location.href,'unchanged');assert.match(notice,/paused/);
+});

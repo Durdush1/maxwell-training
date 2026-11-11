@@ -39,3 +39,7 @@ Run `node --test mt-deploy/tests/reliability.test.cjs` from the repository root.
 - Measure actual conversion and acquisition costs before setting revenue targets. A website alone does not guarantee revenue.
 
 Do not claim full automation, load-test readiness, full security, or a completed paid checkout test until these items have been implemented and verified.
+
+## Credit exhaustion policy
+
+Owner selected: use remaining credits, then pause new sales. Generation now recognizes provider billing/credit errors, returns SALES_PAUSED without retrying, and blocks checkout in the affected browser session until a later generation succeeds. Existing payment verification and PDF retrieval remain available. Tests simulate these failures without paid calls. This is not yet a global sales switch: other browser sessions and existing direct Stripe payment links are unaffected. Shared pause state and Stripe link control remain pending authorized Vercel team access and Stripe connection. No recurring balance-check automation has been created.
