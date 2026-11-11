@@ -15,11 +15,11 @@ Verified 11 November 2026. No paid upgrades or AI top-ups are authorized.
 
 ## Services
 
-Anthropic generates training programs; this consumes paid API credits even though the preview is free to customers. Claude history reports an expired key was replaced in November. Current balance has not been independently verified.
+Anthropic generates training programs; this consumes paid API credits even though the preview is free to customers. Claude history reports an expired key was replaced in November. The signed-in Anthropic dashboard showed $0.76 remaining during this session; no funds were added.
 
 Stripe payment links charge $19, $29, or $39. Server verification confirms the session's payment state. PDFs are generated in the browser. No durable order-to-program store or automatic program-email delivery exists yet. Full plan content is sent to the browser for preview; the PDF button is not server-side content protection.
 
-EmailJS uses the existing contact template to send inquiries and review submissions to Maxwell.ionita@gmail.com. A contact test with marker MT-20261111-01 was accepted by EmailJS and found in the connected sender's Sent folder. Destination inbox receipt has not been independently verified. Reviews require manual moderation; no automatic publication is configured.
+EmailJS uses the existing contact template to send inquiries and review submissions to Maxwell.ionita@gmail.com. A contact test with marker MT-20261111-01 was accepted by EmailJS and found in the connected sender's Sent folder. Review test MT-REVIEW-20261111-01 was also sent successfully after deployment and found in Sent. Destination inbox receipt has not been independently verified. Reviews require manual moderation; no automatic publication is configured.
 
 Claude project context was read in the signed-in desktop app. Gemini was asked for feedback using only the public site. Neither is a persistent backend integration or an unattended operator.
 

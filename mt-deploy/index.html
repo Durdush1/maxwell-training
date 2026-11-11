@@ -3353,6 +3353,8 @@ function renderStep(){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 window.startQuiz = function(lvl){
+  window._paid = false;
+  try { sessionStorage.removeItem('mt_checkout_session'); } catch(e) {}
   if(lvl){ A.level=lvl; window.tier=lvl; }
   document.body.style.overflow='';
   var cta=document.getElementById('sticky-cta'); if(cta) cta.hidden=true;
