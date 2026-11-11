@@ -10,13 +10,15 @@ module.exports = async (req, res) => {
   try {
     const r = await fetch('https://api.stripe.com/v1/checkout/sessions/' + id, {
       headers: { Authorization: 'Bearer ' + key },
+      signal: AbortSignal.timeout(10000),
     });
     const s = await r.json();
     if (!r.ok) return res.status(200).json({ paid: false });
-    const paid = s.status === 'complete' && (s.payment_status === 'paid' || s.payment_status === 'no_payment_required');
+    const validMode = key.startsWith('sk_live_') || key.startsWith('rk_live_') ? s.livemode === true : s.livemode === false;
+    const paid = validMode && s.mode === 'payment' && s.status === 'complete' && (s.payment_status === 'paid' || s.payment_status === 'no_payment_required');
     return res.status(200).json({ paid, amount: paid ? s.amount_total : 0 });
   } catch (e) {
-    console.error('verify error', e.message);
+    console.error('Payment verification unavailable');
     return res.status(500).json({ paid: false, error: 'Could not verify payment' });
   }
 };
