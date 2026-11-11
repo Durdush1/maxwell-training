@@ -39,5 +39,6 @@
         }
       ]
     }
-  ]
+  ],
+  "buildCommand": "node --test tests/reliability.test.cjs"
 }

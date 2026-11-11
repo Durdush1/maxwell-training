@@ -28,3 +28,25 @@ test('inline scripts parse and local images exist',()=>{
  for(const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)){if(!/src=|application\/ld\+json/.test(match[1]))new vm.Script(match[2]);}
  for(const match of html.matchAll(/(?:src|content)="(\/images\/[^\"]+)"/g))assert.ok(fs.existsSync(__dirname+'/..'+match[1]));
 });
+
+test('checkout retry survives reload and missing programs never show a download', async()=>{
+ const html=fs.readFileSync(__dirname+'/../index.html','utf8');
+ const code=html.slice(html.indexOf('async function checkReturn()'),html.indexOf('async function retrieveAndShow('));
+ const values=new Map();
+ const elements=Object.fromEntries(['conf-status','conf-dl-btn','conf-h'].map(id=>[id,{hidden:false,textContent:''}]));
+ let paid=false, requests=0;
+ const context={URLSearchParams,encodeURIComponent,window:{location:{search:'?success=1&session_id=cs_live_123456789012345',pathname:'/'},history:{replaceState(){}}},sessionStorage:{getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)},document:{getElementById:id=>elements[id]},showPg(){},announce(){},fetch:async()=>{requests++;return {ok:true,json:async()=>({paid})}}};
+ vm.createContext(context);vm.runInContext(code,context);
+ await context.checkReturn();
+ assert.equal(context.window._paid,false);
+ assert.equal(values.get('mt_checkout_session'),'cs_live_123456789012345');
+ context.window.location.search='';paid=true;
+ await context.checkReturn();
+ assert.equal(requests,2);assert.equal(context.window._paid,true);
+ assert.equal(elements['conf-dl-btn'].hidden,true);
+ assert.match(elements['conf-status'].textContent,/Do not pay again/);
+ values.set('mt_plan','A sample training plan. '.repeat(20));
+ await context.checkReturn();
+ assert.equal(elements['conf-dl-btn'].hidden,false);
+ assert.match(elements['conf-status'].textContent,/ready to download/);
+});

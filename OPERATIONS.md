@@ -25,7 +25,7 @@ Claude project context was read in the signed-in desktop app. Gemini was asked f
 
 ## Checks
 
-Run `node --test mt-deploy/tests/reliability.test.cjs` from the repository root. These tests make no paid API calls. Review the Vercel deployment status after publishing and test navigation, preview tabs, quiz steps, contact, reviews, payment return, and PDF download. A live payment and paid AI-generation test were not performed during this zero-spend pass.
+Run `node --test mt-deploy/tests/reliability.test.cjs` from the repository root. These tests make no paid API calls. Vercel runs them as its build command, so a failing test blocks the new deployment. Review the Vercel deployment status after publishing and test navigation, preview tabs, quiz steps, contact, reviews, payment return, and PDF download. A live payment and paid AI-generation test were not performed during this zero-spend pass.
 
 ## Remaining launch work
 
